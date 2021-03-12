@@ -85,7 +85,7 @@ If you want to contribute to IB-Container development:
 
   *  Make a fresh fork of ib-container (Fork button on top of Github GUI)
   *  Clone your fork locally (git clone /your fork private URL/)
-  *  Add main ib-container repo as upstream (git remote add upstream git://github.com/ib-ruby/ib-container.git)
+  *  Add main ib-container repo as upstream (git remote add upstream https://github.com/ib-ruby/ib-container.git)
   *  Create your feature branch (git checkout -b my-new-feature)
   *  Modify code as you see fit
   *  Commit your changes (git commit -am 'Added some feature')
