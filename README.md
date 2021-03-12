@@ -81,7 +81,7 @@ This  software is currently NOT production ready.
 
 ## CONTRIBUTING
 
-If you want to contribute to IC-Container development:
+If you want to contribute to IB-Container development:
 
   *  Make a fresh fork of ib-container (Fork button on top of Github GUI)
   *  Clone your fork locally (git clone /your fork private URL/)
