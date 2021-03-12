@@ -79,19 +79,19 @@ This  software is currently NOT production ready.
 
 
 
-#CONTRIBUTING
+# CONTRIBUTING
 
 If you want to contribute to IC-Container development:
 
-    Make a fresh fork of ib-container (Fork button on top of Github GUI)
-    Clone your fork locally (git clone /your fork private URL/)
-    Add main ib-container repo as upstream (git remote add upstream git://github.com/ib-ruby/ib-container.git)
-    Create your feature branch (git checkout -b my-new-feature)
-    Modify code as you see fit
-    Commit your changes (git commit -am 'Added some feature')
+  *  Make a fresh fork of ib-container (Fork button on top of Github GUI)
+  *  Clone your fork locally (git clone /your fork private URL/)
+  *  Add main ib-container repo as upstream (git remote add upstream git://github.com/ib-ruby/ib-container.git)
+  *  Create your feature branch (git checkout -b my-new-feature)
+  *  Modify code as you see fit
+  *  Commit your changes (git commit -am 'Added some feature')
     Pull in latest upstream changes (git fetch upstream -v; git merge upstream/master)
-    Push to the branch (git push origin my-new-feature)
-    Go to your Github fork and create new Pull Request via Github GUI
+  *  Push to the branch (git push origin my-new-feature)
+  *  Go to your Github fork and create new Pull Request via Github GUI
 
 ... then proceed from step 5 for more code modifications... 
 
