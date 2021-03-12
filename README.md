@@ -79,7 +79,7 @@ This  software is currently NOT production ready.
 
 
 
-# CONTRIBUTING
+## CONTRIBUTING
 
 If you want to contribute to IC-Container development:
 
@@ -89,7 +89,7 @@ If you want to contribute to IC-Container development:
   *  Create your feature branch (git checkout -b my-new-feature)
   *  Modify code as you see fit
   *  Commit your changes (git commit -am 'Added some feature')
-    Pull in latest upstream changes (git fetch upstream -v; git merge upstream/master)
+  *  Pull in latest upstream changes (git fetch upstream -v; git merge upstream/master)
   *  Push to the branch (git push origin my-new-feature)
   *  Go to your Github fork and create new Pull Request via Github GUI
 
