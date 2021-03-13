@@ -43,15 +43,18 @@ Edit `setup.sh` and change `LOGIN`, `PASS`. If no demo account is used, set `DEM
 
 ## Arguments
 
-The script is called with up to four arguments
+The script is called with up to six arguments
 
 ```
-> bash setup.sh {name of the container default= t1} 
+> bash setup.sh {name of the container default= t1}  [ required ]
+                {ib login}
+                {ib password}
                 {port of the reverse ssh tunnel default= random number}
-                {middleman-server  default= localhost}
+                {middleman-server}
                 {username on the middleman server default=actual username}
 
 ```
+Except for the container name, all arguments are requested interactively if absent
 
 ## Finishing
 
