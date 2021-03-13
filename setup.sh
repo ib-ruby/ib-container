@@ -1,9 +1,31 @@
 #!/bin/bash
 
-### tws/gateway credentials
-LOGIN=demouser
-PASS=demopasswort
-DEMOACCOUNT=1   # 1 oder 0
+### Setup a lxc-container 
+### Install interactive brokers trading software
+### Setup the environment for autologin and daily restart
+### Setup networking ans implement a secure login via ssh-tunnel
+### Start simple-monitor
+
+### Parameter
+#### $1          name of the container
+#### $2          ib-login
+#### $3          ib-password
+#### $3          port of ssh tunnel (monitoring port =  port + 10000)
+#### $4          middleman server
+#### $5          middleman user
+
+### Prerequisites to run the script
+### 
+### * A running LXD Server 
+### * Put the public ssh certificate of the middleman server into the working dir of this script
+
+
+
+### tws/gateway credentials  
+###  leave empty for interactive mode
+LOGIN=
+PASS=
+DEMOACCOUNT=1   # 1 or 0
 
 ### Name des Containers
 ### Kann entweder als Parameter übergeben werden oder unten eingesetzt
@@ -33,7 +55,7 @@ START_TIME='5 5'
 ## Nach dem Aufsetzen eines LXD-Containers laufen noch Backgroundprozesse ab.
 ## Es muss gewartet werden, bis diese abgeschlossen sind.
 ## Auf langsamen Rechnern anpassen!
-LXD_DELAY=3 # sec
+LXD_DELAY=5 # sec
 
 
 ### LXD-Requirements
@@ -50,37 +72,16 @@ SILENT_INSTALL=0  # 0 verbose output
 ###
 ###  2            falsche LDX-Version
 ###  3            Container bereits angelegt
-###  4            Container konnte nicht richtig initialisiert werden (kein Netzwerk) 
+###  4            Container konnte nicht richtig initialisiert werden (kein Netzwerk, Java nicht erfolgreich installiert) 
 ###  99           LXD ist nicht gestartet oder nicht vorhanden
+###  255          Abbruch durch Nutzer           
 
 ###################################################################################################################
 ################## no modifications beyond this line ##############################################################
 ###################################################################################################################
 ### Speicherort der Konfiguration des ssh-tunnels
 SSH_TUNNEL_LOCATION="/etc/network/if-up.d/reverse_ssh_tunnel"
-if test -n "${2}"
-then
-	SSH_PORT_NUMBER=${2}
-	SSH_MONITORING_PORT_NUMBER=`expr ${2} + 10000`
-else
-	echo "Kein Port angegeben.  Erzeuge einen zufälligen Port ..."
-	SSH_PORT_NUMBER=$[ ( $RANDOM % 10000 )  + 10000 ]
-	SSH_MONITORING_PORT_NUMBER=$[ ( $RANDOM % 10000 )  + 20000 ]
-fi
 
-SSH_MIDDLEMAN_USER=`whoami`
-if test -n "${3}"
-then
-	SSH_MIDDLEMAN_SERVER=${3}
-else
-	echo "Kein Middleman Server angegeben, benutze localhost"
-	SSH_MIDDLEMAN_SERVER=localhost
-fi
-
-if test -n "${4}"
-then
-	SSH_MIDDLEMAN_USER=${4}
-fi
 
 if [ $SILENT_INSTALL -ne 0 ] ; then
 	SILENT=" 2>&1>/dev/null"
@@ -88,6 +89,81 @@ else
 	SILENT=
 fi
 
+
+if test -n "${2}"
+then
+	LOGIN=${2}
+else
+	if [[ -z $LOGIN ]] ; then  
+		read -p "Interactive Brokers Account Login: " LOGIN
+	fi
+fi
+
+if test -n "${3}"
+then
+	PASS=${3}
+else
+	if [[ -z $PASS ]] ; then 
+		read -p "Interactive Brokers Account Password: " PASS 
+
+		read -p "Demoaccount? [y|N]:" answer
+		if [ ! $answer = 'y' ]  && [ ! $answer = 'j' ] ; then
+			DEMOACCOUNT=0
+		else 
+			DEMOACCOUNT=1
+		fi
+	fi
+fi
+
+if test -n "${5}"
+then
+	MIDDLEMAN_SERVER=${5}
+else
+	read -p "Bezeichnung oder IP des Endpunkts des SSH-Tunnels [return=keinen Tunnel verwenden]: " SSH_MIDDLEMAN_SERVER
+	if [[ -z $SSH_MIDDLEMAN_SERVER ]] ; then
+		SETUP_AUTOSSH=0
+	else
+		SETUP_AUTOSSH=1
+		if test -n "${4}"
+		then
+			SSH_PORT_NUMBER=${4}
+		else
+			echo "Kein Port angegeben.  Erzeuge zufällige Ports ..."
+			SSH_PORT_NUMBER=$[ ( $RANDOM % 10000 )  + 10000 ]
+			read -p "Port für SSH-Tunnel [$SSH_PORT_NUMBER]: " port
+			if [[ -n $port ]] ; then
+				SSH_PORT_NUMBER=$port
+			fi
+		fi
+		SSH_MONITORING_PORT_NUMBER=`expr $SSH_PORT_NUMBER + 10000`
+		if test -n "${6}" 
+		then
+			SSH_MIDDLEMAN_USERNAME=${5}
+		else
+			read "Benutzer auf dem Endpunkt des SSH-Tunnels: $SSH_MIDDLEMAN_SERVER:[`whoami`] "  MIDDLEMAN_USERNAME
+			if [[ -z $SSH_MIDDLEMAN_USERNAME ]]; then
+				SSH_MIDDLEMAN_USERNAME=`whoami`
+			fi
+		fi
+	fi
+fi
+
+
+echo "-------------------------"
+echo "Containter: $CONTAINER"
+echo "Login:      $LOGIN"
+echo "Password:   $PASS"
+echo "Demoaccount: `if [ $DEMOACCOUNT -eq 1 ] ; then echo "ja"  ; else echo "nein"; fi ` "
+echo "PORT:       $SSH_PORT_NUMBER"
+echo "Backport:   $SSH_MONITORING_PORT_NUMBER"
+echo "Middleman:  $SSH_MIDDLEMAN_SERVER"
+echo "Middleman User: $SSH_MIDDLEMAN_USERNAME"
+echo "......................................"
+
+read -p "Installieren? [Y/n]:" cont
+if  [[ -n $cont  ||  $cont == 'n' ]]  ; then
+	exit 255
+fi
 
 check_lxd(){
 #LXD vereint die Vorteile virtueller Rechner (Xen et.\,al.)  und die Ressourceneffizienz von Containern (aka Docker). 
@@ -195,7 +271,7 @@ init_container(){
 ## Check ob Container jungfraeulich ist
 ## Java JRE installieren
 ## TWS / Gateway installieren
-	local access_container="lxc exec $CONTAINER -- sudo --login --user ubuntu -- "
+	local access_container="lxc exec $CONTAINER -- sudo --login --user ubuntu --"
 	if [ `$access_container ls  /home/ubuntu | wc -l `  -eq 0 ]  ; then
 		echo "Home-Directory des Containers ist leer"
 		echo "Installiere $PRODUCT"
@@ -203,17 +279,21 @@ init_container(){
 		sleep $LXD_DELAY 
 
 		echo "Installiere Java  Das dauert einige Minuten ..."
-		$access_container  sudo apt update  $SILENT
-		$access_container  sudo apt install -y openjdk-14-jre   $SILENT
+		$access_container  sudo apt update  $SILENT 
+		$access_container  sudo apt install -y openjdk-14-jre   $SILENT 	
+
+#	testen, ob java installiert ist: 
+#  $access_container dpkg -s openjdk-14-jre | grep -c installed 
 
 		lxc file push $IB_PROGRAM $CONTAINER/home/ubuntu/
 		echo "Installiere ${PRODUCT}.  Das dauert einige Minuten ..."
 		#$access_container DISPLAY= $IB_PROGRAM <<<""$'\n' 
 		lxc exec --user 1000 --group 1000 --env "DISPLAY=" $CONTAINER -- bash --login /home/ubuntu/$IB_PROGRAM <<<""$'\n'
 #$SILENT
-
+		return 0
 	else
 		echo "Container ist nicht leer."
+		return 1
 	fi
 }
 
@@ -229,7 +309,7 @@ apply_ibc(){
 		echo "IBC-$IBC_VERSION ist bereits lokal vorhanden "
 	else	
 		echo "Hole IBC-Archib  vom Git-Archiv"
-		wget $IBC_PATH SILENT
+		wget $IBC_PATH $SILENT
 	fi
 	## Erstelle ibc-Verzeichnis im Container
 	if [ `$access_container find /home/ubuntu -type d -name ibc | wc -l ` -ne  0 ] ; then
@@ -237,6 +317,7 @@ apply_ibc(){
 		echo "Installation von IBC wird übersprungen."
 		echo "Es wird keine crontab installiert."
 	else
+		$access_container  sudo apt install -y openjdk-14-jre   $SILENT 	
 		$access_container mkdir ibc
 		$access_container  sudo apt install -y unzip cron $SILENT
 		lxc file push $ibc_file $CONTAINER/home/ubuntu/ibc/
@@ -246,18 +327,18 @@ apply_ibc(){
 		$access_container  chmod a+x ibc/scripts/ibcstart.sh
 		$access_container  chmod a+x ibc/scripts/displaybannerandlaunch.sh
 		$access_container sed -in -e  '80 s/edemo/'"${LOGIN}"'/' -e ' 85 s/demouser/'"${PASS}"'/' /home/ubuntu/ibc/config.ini
-		if [ $DEMO_ACCOUNT -eq 1 ] ; then
-			$access_container sed -n ' 23 s/=/=paper/ ' /home/ubuntu/ibc/config.ini
+		if [ $DEMOACCOUNT -eq 1 ] ; then
+			$access_container sed -in ' 143 s/=live/=paper/ ' /home/ubuntu/ibc/config.ini
 		fi
 		if [ "$PRODUCT" = "tws" ] ; then
 			$access_container sed -in ' 21 s/978/981/ ' /home/ubuntu/ibc/twsstart.sh 
-			$access_container sed -in ' 23 s/=/=paper/ ' /home/ubuntu/ibc/twsstart.sh 
+#			$access_container sed -in ' 23 s/=/=paper/ ' /home/ubuntu/ibc/twsstart.sh 
 			$access_container sed -in ' 25 s/\/opt/\~/ ' /home/ubuntu/ibc/twsstart.sh
 		else
 			$access_container rm ibc/twsstart.sh
 		fi
 		$access_container sed -in ' 21 s/972/981/ ' /home/ubuntu/ibc/gatewaystart.sh 
-		$access_container sed -in ' 23 s/=/=paper/ ' /home/ubuntu/ibc/gatewaystart.sh 
+#		$access_container sed -in ' 23 s/=/=paper/ ' /home/ubuntu/ibc/gatewaystart.sh 
 		$access_container sed -in ' 25 s/\/opt/\~/ ' /home/ubuntu/ibc/gatewaystart.sh
 		touch ibc_cronfile
 		local lxd_display=`$access_container echo $DISPLAY`
@@ -312,7 +393,7 @@ setup_reverse_tunnel(){
 	else
 		$access_container sudo apt install -y openssh-server autossh  # add .ssh dir 
 		# https://stackoverflow.com/questions/43235179/how-to-execute-ssh-keygen-without-prompt
-			$access_container ssh-keygen -q -t rsa -N '' -f /home/ubuntu/.ssh/id_rsa <<<y 2>&1 >/dev/null
+		$access_container ssh-keygen -q -t rsa -N '' -f /home/ubuntu/.ssh/id_rsa <<<y 2>&1 >/dev/null
 		# download public-key and install it locally
 		lxc file pull $CONTAINER/home/ubuntu/.ssh/id_rsa.pub .
 		cat id_rsa.pub >> ~.ssh/autorized_keys
@@ -386,13 +467,17 @@ download_ib_software
 
 
 init_container
+if [ $? -eq 3  ] ; then init_container ; fi             # wiederholen, falls container nicht r
+                                                        # rechtzeitig initialisiert war
 if [ $? -ne 0  ] ; then exit 4 ; fi			# return code 3init_container
 
 apply_ibc
 
 install_simple_monitor
 
-setup_reverse_tunnel
+if [ $SETUP_AUTOSSH -eq 1 ] ; then 
+	setup_reverse_tunnel
+fi
 
 run_ats 
 
