@@ -27,6 +27,10 @@ LOGIN=
 PASS=
 DEMOACCOUNT=1   # 1 or 0
 
+### predefine settings for ssh-tunnel
+SSH_MIDDLEMAN_SERVER=
+SSH_MIDDLEMAN_USER=
+
 ### Name des Containers
 ### Kann entweder als Parameter übergeben werden oder unten eingesetzt
 if test -n "${1}"
@@ -67,7 +71,6 @@ RUBY_VERSION=3.0.0
 
 
 
-SILENT_INSTALL=0  # 0 verbose output
 ####  return codes
 ###
 ###  2            falsche LDX-Version
@@ -82,12 +85,10 @@ SILENT_INSTALL=0  # 0 verbose output
 ### Speicherort der Konfiguration des ssh-tunnels
 SSH_TUNNEL_LOCATION="/etc/network/if-up.d/reverse_ssh_tunnel"
 
-
-if [ $SILENT_INSTALL -ne 0 ] ; then
-	SILENT=" 2>&1>/dev/null"
-else
-	SILENT=
-fi
+### Alle Ausgaben in die Datei containerbau.log umleiten
+rm containerbau.log
+touch containerbau.log
+SILENT=containerbau.log
 
 
 if test -n "${2}"
@@ -152,7 +153,7 @@ fi
 echo "-------------------------"
 echo "Containter: $CONTAINER"
 echo "Login:      $LOGIN"
-echo "Password:   $PASS"
+echo "Password:  **** " #  $PASS"
 echo "Demoaccount: `if [ $DEMOACCOUNT -eq 1 ] ; then echo "ja"  ; else echo "nein"; fi ` "
 echo "PORT:       $SSH_PORT_NUMBER"
 echo "Backport:   $SSH_MONITORING_PORT_NUMBER"
@@ -279,17 +280,17 @@ init_container(){
 		sleep $LXD_DELAY 
 
 		echo "Installiere Java  Das dauert einige Minuten ..."
-		$access_container  sudo apt update  $SILENT 
-		$access_container  sudo apt install -y openjdk-14-jre   $SILENT 	
+		$access_container  sudo apt update   >> $SILENT  
+		$access_container  sudo apt install -y openjdk-14-jre    >> $SILENT  	
 
 #	testen, ob java installiert ist: 
 #  $access_container dpkg -s openjdk-14-jre | grep -c installed 
-
+		echo "Falls java an dieser Stelle nicht installiert wurde ... wir holen dies später noch nach!"
 		lxc file push $IB_PROGRAM $CONTAINER/home/ubuntu/
 		echo "Installiere ${PRODUCT}.  Das dauert einige Minuten ..."
 		#$access_container DISPLAY= $IB_PROGRAM <<<""$'\n' 
-		lxc exec --user 1000 --group 1000 --env "DISPLAY=" $CONTAINER -- bash --login /home/ubuntu/$IB_PROGRAM <<<""$'\n'
-#$SILENT
+		lxc exec --user 1000 --group 1000 --env "DISPLAY=" $CONTAINER -- bash --login /home/ubuntu/$IB_PROGRAM <<<""$'\n'  >> $SILENT
+# >> $SILENT 
 		return 0
 	else
 		echo "Container ist nicht leer."
@@ -309,7 +310,7 @@ apply_ibc(){
 		echo "IBC-$IBC_VERSION ist bereits lokal vorhanden "
 	else	
 		echo "Hole IBC-Archib  vom Git-Archiv"
-		wget $IBC_PATH $SILENT
+		wget $IBC_PATH  >> $SILENT 
 	fi
 	## Erstelle ibc-Verzeichnis im Container
 	if [ `$access_container find /home/ubuntu -type d -name ibc | wc -l ` -ne  0 ] ; then
@@ -317,11 +318,11 @@ apply_ibc(){
 		echo "Installation von IBC wird übersprungen."
 		echo "Es wird keine crontab installiert."
 	else
-		$access_container  sudo apt install -y openjdk-14-jre   $SILENT 	
+		$access_container  sudo apt install -y  openjdk-14-jre    >> $SILENT  	
 		$access_container mkdir ibc
-		$access_container  sudo apt install -y unzip cron $SILENT
+		$access_container  sudo apt install -y unzip cron  >> $SILENT 
 		lxc file push $ibc_file $CONTAINER/home/ubuntu/ibc/
-		$access_container  unzip ibc/$ibc_file -d ibc  $SILENT
+		$access_container  unzip ibc/$ibc_file -d ibc   >> $SILENT 
 		$access_container  chmod a+x ibc/gatewaystart.sh
 		$access_container  chmod a+x ibc/twsstart.sh
 		$access_container  chmod a+x ibc/scripts/ibcstart.sh
@@ -366,18 +367,19 @@ install_simple_monitor(){
 	if [ `$access_container find /home/ubuntu -type d -name simple-monitor | wc -l ` -ne  0 ] ; then
 		echo "simple monitor ist bereits angelegt"
 		return 1
-	else
+	else 
+		{
 		$access_container  sudo apt-get install -y software-properties-common 
 		$access_container  sudo apt-add-repository -y ppa:rael-gc/rvm
-		$access_container  sudo apt-get update
-		$access_container  sudo apt-get install -y rvm 
+		$access_container  sudo apt-get update  
+		$access_container  sudo apt-get install -y rvm elinks  git tmux # vim
 		$access_container  sudo usermod -a -G rvm ubuntu
-		$access_container  rvm install $RUBY_VERSION	
-		$access_container  sudo apt -y install tmux vim elinks git 
-		$access_container  git clone https://github.com/ib-ruby/simple-monitor.git
-		$access_container  gem install bundler
+		$access_container  rvm install $RUBY_VERSION	 
+		$access_container  git clone https://github.com/ib-ruby/simple-monitor.git 
+		$access_container  gem install bundler  
 		lxc file push install_simple_monitor.sh $CONTAINER/home/ubuntu/
-		$access_container  ./install_simple_monitor.sh
+		$access_container  ./install_simple_monitor.sh  
+		} >> $SILENT
 		return 0
 	fi 
 } 
@@ -391,7 +393,7 @@ setup_reverse_tunnel(){
 	if [ `$access_container find /home/ubuntu -type d -name .ssh | wc -l ` -ne  0 ] ; then
 		echo "Verzeichnis .ssh ist bereits vorhanden."
 	else
-		$access_container sudo apt install -y openssh-server autossh  # add .ssh dir 
+		$access_container sudo apt install -y openssh-server autossh  >> $SILENT  # add .ssh dir 
 		# https://stackoverflow.com/questions/43235179/how-to-execute-ssh-keygen-without-prompt
 		$access_container ssh-keygen -q -t rsa -N '' -f /home/ubuntu/.ssh/id_rsa <<<y 2>&1 >/dev/null
 		# download public-key and install it locally
