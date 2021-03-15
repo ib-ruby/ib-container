@@ -83,12 +83,13 @@ RUBY_VERSION=3.0.0
 ################## no modifications beyond this line ##############################################################
 ###################################################################################################################
 ### Speicherort der Konfiguration des ssh-tunnels
-SSH_TUNNEL_LOCATION="/etc/network/if-up.d/reverse_ssh_tunnel"
+SSH_TUNNEL_LOCATION="etc/network/if-up.d/reverse_ssh_tunnel"
 
 ### Alle Ausgaben in die Datei containerbau.log umleiten
-rm containerbau.log
-touch containerbau.log
-SILENT=containerbau.log
+logfile=containerbau.log
+if [ -f $logfile ] ; then  rm $logfile ; fi
+touch $logfile
+SILENT=$logfile
 
 
 if test -n "${2}"
@@ -118,9 +119,11 @@ fi
 
 if test -n "${5}"
 then
-	MIDDLEMAN_SERVER=${5}
+	SSH_MIDDLEMAN_SERVER=${5}
 else
+	if [[ -z $SSH_MIDDLEMAN_SERVER ]] ; then
 	read -p "Bezeichnung oder IP des Endpunkts des SSH-Tunnels [return=keinen Tunnel verwenden]: " SSH_MIDDLEMAN_SERVER
+	fi
 	if [[ -z $SSH_MIDDLEMAN_SERVER ]] ; then
 		SETUP_AUTOSSH=0
 	else
@@ -129,7 +132,7 @@ else
 		then
 			SSH_PORT_NUMBER=${4}
 		else
-			echo "Kein Port angegeben.  Erzeuge zufällige Ports ..."
+			echo "Erzeuge zufällige Ports ..."
 			SSH_PORT_NUMBER=$[ ( $RANDOM % 10000 )  + 10000 ]
 			read -p "Port für SSH-Tunnel [$SSH_PORT_NUMBER]: " port
 			if [[ -n $port ]] ; then
@@ -139,11 +142,12 @@ else
 		SSH_MONITORING_PORT_NUMBER=`expr $SSH_PORT_NUMBER + 10000`
 		if test -n "${6}" 
 		then
-			SSH_MIDDLEMAN_USERNAME=${5}
+			SSH_MIDDLEMAN_USER=${5}
 		else
-			read "Benutzer auf dem Endpunkt des SSH-Tunnels: $SSH_MIDDLEMAN_SERVER:[`whoami`] "  MIDDLEMAN_USERNAME
-			if [[ -z $SSH_MIDDLEMAN_USERNAME ]]; then
-				SSH_MIDDLEMAN_USERNAME=`whoami`
+			user=`whoami`
+			read  -p "Benutzer auf dem Endpunkt des SSH-Tunnels: $SSH_MIDDLEMAN_SERVER:[$user] "  SSH_MIDDLEMAN_USER
+			if [[ -z $SSH_MIDDLEMAN_USER ]]; then
+				SSH_MIDDLEMAN_USER=$user
 			fi
 		fi
 	fi
@@ -158,7 +162,7 @@ echo "Demoaccount: `if [ $DEMOACCOUNT -eq 1 ] ; then echo "ja"  ; else echo "nei
 echo "PORT:       $SSH_PORT_NUMBER"
 echo "Backport:   $SSH_MONITORING_PORT_NUMBER"
 echo "Middleman:  $SSH_MIDDLEMAN_SERVER"
-echo "Middleman User: $SSH_MIDDLEMAN_USERNAME"
+echo "Middleman User: $SSH_MIDDLEMAN_USER"
 echo "......................................"
 
 read -p "Installieren? [Y/n]:" cont
@@ -231,8 +235,6 @@ prepare_lxd(){
 launch_image(){
 ## Test ob das Image bereits angelegt ist
 	if  lxc list | grep -q $CONTAINER  ; then 
-		echo "Container ist bereits angelegt"
-		echo "Bitte Container >> $CONTAINER <<  zuerst manuell entfernen"
 		return 1
 	else
 		lxc launch --profile default --profile gui  ubuntu-minimal:f $CONTAINER
@@ -245,7 +247,7 @@ launch_image(){
 
 download_ib_software(){
 	if [ -f $IB_PROGRAM ] ; then
-		echo "$PRODUCT ist bereits lokal vorhanden "
+		:
 	else	
 		echo "Hole $PRODUCT vom offiziellen Server"
 		wget $IB_PATH
@@ -259,7 +261,6 @@ check_container(){
 ### 2. IPV4 muster ist vorhanden
 
 	if lxc list | grep -q $CONTAINER && [ `lxc list | grep $CONTAINER | awk -F '|' '{ print $3 }' ` = "RUNNING" ] && [ `lxc list | grep $CONTAINER |  awk -F'|' '{ if($4 ~ /[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}/ ) {print 1} else {print 0}}'` -eq 1 ] ; then
-		echo "Container is active and running" 
 		return 0
 	else
 		echo 'Networking is not active'
@@ -293,7 +294,7 @@ init_container(){
 # >> $SILENT 
 		return 0
 	else
-		echo "Container ist nicht leer."
+		echo "Container ist nicht leer. Konfiguration übersprungen!"
 		return 1
 	fi
 }
@@ -309,7 +310,7 @@ apply_ibc(){
 	if [ -f  $ibc_file ] ; then
 		echo "IBC-$IBC_VERSION ist bereits lokal vorhanden "
 	else	
-		echo "Hole IBC-Archib  vom Git-Archiv"
+		echo "Hole IBC-Archiv  vom GitHub-Server"
 		wget $IBC_PATH  >> $SILENT 
 	fi
 	## Erstelle ibc-Verzeichnis im Container
@@ -367,7 +368,7 @@ install_simple_monitor(){
 	# elinks installieren
 	# tmux- und elinks-Konfigurationen kopieren
 	# Simple-Monitor installieren
-	local access_container="lxc exec $CONTAINER -- sudo --login --user ubuntu -- "
+	local access_container="lxc exec $CONTAINER -- sudo --login --user ubuntu --"
 	if [ `$access_container find /home/ubuntu -type d -name simple-monitor | wc -l ` -ne  0 ] ; then
 		echo "simple monitor ist bereits angelegt"
 		return 1
@@ -396,24 +397,45 @@ setup_reverse_tunnel(){
 	# SSH für sicheren passwortlosen Zugang aufsetzen
 	# reverse tunnel aufsetzen
 	# container neu starten und tunnel testen
-	local access_container="lxc exec $CONTAINER -- sudo --login --user ubuntu -- "
-	if [ `$access_container find /home/ubuntu -type d -name .ssh | wc -l ` -ne  0 ] ; then
-		echo "Verzeichnis .ssh ist bereits vorhanden."
-	else
+	local access_container="lxc exec $CONTAINER -- sudo --login --user ubuntu --"
+	
+	check_tunnel(){
+		if [ `$access_container ps -ef | grep -c localhost:22 ` -eq 1 ] ; then 
+			return 0
+		else
+			return 1
+		fi
+	}
+	
+	check_tunnel
+        if [ $? -ne 0 ] ; then
+
 		$access_container sudo apt install -y openssh-server autossh  >> $SILENT  # add .ssh dir 
-		# https://stackoverflow.com/questions/43235179/how-to-execute-ssh-keygen-without-prompt
-		$access_container ssh-keygen -q -t rsa -N '' -f /home/ubuntu/.ssh/id_rsa <<<y 2>&1 >/dev/null
+		lxc file push keygen.sh $CONTAINER/home/ubuntu/
+		$access_container /home/ubuntu/keygen.sh
 		# download public-key and install it locally
-		lxc file pull $CONTAINER/home/ubuntu/.ssh/id_rsa.pub .
-		cat id_rsa.pub >> ~.ssh/autorized_keys
-		rm id_rsa.pub
+
+		lxc file pull $CONTAINER/home/ubuntu/.ssh/id_rsa.pub $CONTAINER.pub
+		echo ""
+		echo " ++++++++++++++++++++++++++++++++++++++++++++++ "
+		echo " Container-Zertifikat heruntergeladen!          "
+		echo " "
+		echo " ------>  $CONTAINER.pub  <------               "
+		echo " "
+		echo " Bitte manuell an ~/ssh/autorized_keys auf dem  "
+		echo " Middleman-Server anfügen!                      "
+		echo " ++++++++++++++++++++++++++++++++++++++++++++++ "
+		read -p "nach <CR>   gehts weiter"   read
+
+		echo " Installiere lokal abgelegte Zertifikate im Container"
 		# install certificates to access the container via ssh and reverse ssh
 		for certificate in *.pub 
 		do
 			[ -f $certificate ] || continue
-			if [ "$certificate" = dummy.pub ] ; then
-				echo `cat $certificate`	
+			if [ "$certificate" = dummy.pub ]  || [ "$certificate" = $CONTAINER.pub ] ; then
+				:
 			else
+				echo "installiere $certificate "
 				lxc file push  $certificate $CONTAINER/home/ubuntu/
 				$access_container cat $certificate >> /home/ubuntu/.ssh/authorized_keys
 				$access_container rm $certificate 
@@ -422,42 +444,44 @@ setup_reverse_tunnel(){
 
 		echo "#!/bin/sh
 
-		# This is the username on your local server who has public key authentication setup at the middleman
-		USER_TO_SSH_IN_AS=$SSH_MIDDLEMAN_USERNAME
+			# This is the username on your local server who has public key authentication setup at the middleman
+			USER_TO_SSH_IN_AS=$SSH_MIDDLEMAN_USER
 
-		# This is the username and hostname/IP address for the middleman (internet accessible server)
-		MIDDLEMAN_SERVER_AND_USERNAME=$SSH_MIDDLEMAN_USERNAME@$SSH_MIDDLEMAN_SERVER
+			# This is the username and hostname/IP address for the middleman (internet accessible server)
+			MIDDLEMAN_SERVER_AND_USER=$SSH_MIDDLEMAN_USER@$SSH_MIDDLEMAN_SERVER
 
-		# Port that the middleman will listen on (use this value as the -p argument when sshing)
-		PORT_MIDDLEMAN_WILL_LISTEN_ON=$SSH_PORT_NUMBER
+			# Port that the middleman will listen on (use this value as the -p argument when sshing)
+			PORT_MIDDLEMAN_WILL_LISTEN_ON=$SSH_PORT_NUMBER
 
-		# Connection monitoring port, don't need to know this one
-		AUTOSSH_PORT=$SSH_MONITORING_PORT_NUMBER
+			# Connection monitoring port, don't need to know this one
+			AUTOSSH_PORT=$SSH_MONITORING_PORT_NUMBER
 
-		# Ensures that autossh keeps trying to connect
-		AUTOSSH_GATETIME=0
-		su -c \"autossh -f -N -R *:\${PORT_MIDDLEMAN_WILL_LISTEN_ON}:localhost:22 \${MIDDLEMAN_SERVER_AND_USERNAME} -oLogLevel=error  -oUserKnownHostsFile=/dev/null -oStrictHostKeyChecking=no\" ubuntu
-		" > reverse-tunnel
+			# Ensures that autossh keeps trying to connect
+			AUTOSSH_GATETIME=0
+			su -c \"autossh -f -N -R *:\${PORT_MIDDLEMAN_WILL_LISTEN_ON}:localhost:22 \${MIDDLEMAN_SERVER_AND_USER} -oLogLevel=error  -oUserKnownHostsFile=/dev/null -oStrictHostKeyChecking=no\" ubuntu
+			" > reverse-tunnel
 		chmod +x reverse-tunnel  
 
-		lxc file push reverse-tunnel ${CONTAINER}/${SSH_SCRIPT_LOCATION}
-	home/ubuntu/
-	#	ly sudo mv /home/ubuntu/reverse-tunnel $SSH_SCRIPT_LOCATION
+		lxc file push reverse-tunnel ${CONTAINER}/${SSH_TUNNEL_LOCATION}
 		rm reverse-tunnel
 
-	#	echo "Making script executable"
-	#	chmod +x $SSH_SCRIPT_LOCATION
+		echo "SSH-Tunnel wird installiert." 
 
-		echo "SSH-Tunnel ist installiert. Wird automatisch gestartet"
-		
-		$access_containter sudo  $SSH_SCRIPT_LOCATION
+		lxc exec  $CONTAINER -- /$SSH_TUNNEL_LOCATION
+		sleep 3
+	fi
+	check_tunnel
+	if [ $? -eq 0 ] ; then 
+		echo "Revese Tunnel ist gestartet"
+	else
+		echo "Restart des Containers erforderlich für den Start des Reverse SSH Tunnels"
 	fi
 }
 
 run_ats(){
 	# starte die IB-Software
 	local access_container="lxc exec $CONTAINER -- sudo --login --user ubuntu -- "
- 	$access_container /home/ubuntu/ibc/${INSTANCE}start.sh -inline &
+	$access_container /home/ubuntu/ibc/${INSTANCE}start.sh -inline &
 	sleep 5
         $access_container /home/ubuntu/simple-monitor/start-simple-monitor
 	return 0
@@ -474,15 +498,21 @@ launch_image
 download_ib_software
 
 init_container
-
-apply_ibc
-
-install_simple_monitor
+echo " +++++++++++++++++++++++++++++++++++++++ "
+echo " Container ${CONTAINER} ist angelegt     "
 
 if [ $SETUP_AUTOSSH -eq 1 ] ; then 
 	setup_reverse_tunnel
+	echo " Reverse Tunnel ist aufgebaut      "
 fi
 
-run_ats 
+
+
+ echo "Installiere IBC " 
+ apply_ibc  
+
+ echo "Installiere simple-monitor " 
+ install_simple_monitor 
+ run_ats  
 
 
