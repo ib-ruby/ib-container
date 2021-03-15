@@ -23,7 +23,6 @@ The broker provides two java-executables serving as API-Server
 The `tws`-binary can operate as full GUI-Interface or as lightweight Gateway-Application. [IB-Container](https://github.com/ib-ruby/ib-container) can run both.  The `ibgateway`-binary
 provides the proprietary `IB-API` and the `FIX-Protocol`, the industry standard to access trading-applications. 
 
-
 ## Setup
 The script `setup.sh` 
 * downloads and installs a minimized Ubuntu Linux Image  (Unbuntu 20.4 LTS)
@@ -38,7 +37,28 @@ The script `setup.sh`
 
 Copy your Public SSH-Key to the IB-Container directory. This will grant SSH-access to the container.
 
-Edit `setup.sh` and change `LOGIN`, `PASS`. If no demo account is used, set `DEMOACCOUNT`  to zero.
+Edit the script and set or change default values, in particular `DEMOACCOUNT`.
+
+```
+### tws/gateway credentials  
+###  leave empty for interactive mode
+LOGIN=
+PASS=
+DEMOACCOUNT=1   # 1 or 0
+
+### predefine settings for ssh-tunnel
+SSH_MIDDLEMAN_SERVER=
+SSH_MIDDLEMAN_USER=
+```
+
+
+Run the Bash-Script by
+
+```
+> chmod a+x setup.sh
+> ./setup.sh name_cof container  ib-login ib-password
+```
+
 
 
 ## Arguments
