@@ -378,6 +378,9 @@ install_simple_monitor(){
 		$access_container  git clone https://github.com/ib-ruby/simple-monitor.git 
 		$access_container  gem install bundler  
 		lxc file push install_simple_monitor.sh $CONTAINER/home/ubuntu/
+		if [ $DEMOACCOUNT -eq 0 ] ; then
+			$access_container  sed -in 's/:host: localhost/&:4001/g'  /home/ubuntu/simple-monitor/tws_alias.yml
+		fi 
 		$access_container  ./install_simple_monitor.sh  
 		} >> $SILENT
 		return 0
