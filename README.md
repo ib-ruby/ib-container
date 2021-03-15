@@ -98,6 +98,9 @@ Don't forget to add {container name}.pub to `~/.ssh/autorized_keys` on the Middl
 
 This  software is tested on Ubuntu systems. 
 
+## ToDo
+
+* Implement adressing the ibgateway  application and enable the fix protocol
 
 ## CONTRIBUTING
 
