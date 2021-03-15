@@ -330,7 +330,11 @@ apply_ibc(){
 		$access_container sed -in -e  '80 s/edemo/'"${LOGIN}"'/' -e ' 85 s/demouser/'"${PASS}"'/' /home/ubuntu/ibc/config.ini
 		if [ $DEMOACCOUNT -eq 1 ] ; then
 			$access_container sed -in ' 143 s/=live/=paper/ ' /home/ubuntu/ibc/config.ini
+#			AcceptNonBrokerageAccountWarning=no
+			$access_container sed -in ' 321 s/=no/=yes/ ' /home/ubuntu/ibc/config.ini
 		fi
+#		MinimizeMainWindow=no
+		$access_container sed -in ' 206 s/=no/=yes/ ' /home/ubuntu/ibc/config.ini
 		if [ "$PRODUCT" = "tws" ] ; then
 			$access_container sed -in ' 21 s/978/981/ ' /home/ubuntu/ibc/twsstart.sh 
 #			$access_container sed -in ' 23 s/=/=paper/ ' /home/ubuntu/ibc/twsstart.sh 
@@ -466,15 +470,10 @@ if [ $? -ne 0 ] ; then exit 2 ; fi                     # return code 2 ---> wron
 prepare_lxd
 
 launch_image
-#if [ $? -ne 0  ] ; then  select_menue=1 ; fi			# return code 3
 
 download_ib_software
 
-
 init_container
-if [ $? -eq 3  ] ; then init_container ; fi             # wiederholen, falls container nicht r
-                                                        # rechtzeitig initialisiert war
-if [ $? -ne 0  ] ; then exit 4 ; fi			# return code 3init_container
 
 apply_ibc
 
