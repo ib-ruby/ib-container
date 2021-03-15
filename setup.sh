@@ -179,7 +179,7 @@ check_lxd(){
 
 ## Wir testen die Version
 
-	if [ `systemctl is-active lxd.service` = "active" ] ; then
+	if [ `snap list | grep -c lxd ` -eq 1 ] ||  [ `systemctl is-active lxd.service` = "active" ] ; then
 		echo "LXD ist installiert und gestartet"
 	else
 		echo "LXD ist nicht installiert oder nicht aktiv"
