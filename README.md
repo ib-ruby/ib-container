@@ -78,7 +78,7 @@ Except for the container name, all arguments are requested interactively if abse
 
 ## Finishing
 
-On your Middleman Server, edit `~.ssh/config` and add the reverse tunnel credentials
+On your Middleman Server, edit `~.ssh/config` and add the reverse tunnel specification
 
 If you specified `bash setup.sh t1 3445 your-server-adress your-username` then add
  
@@ -91,15 +91,12 @@ Host ibcontainer
 ``` 
 Then connect through `ssh -Y ibcontainer`
 
+Don't forget to add {container name}.pub to `~/.ssh/autorized_keys` on the Middleman Server. 
 
 
 ## Status
 
-This  software is currently NOT production ready. 
-
-* The autostart of an ibgateway instance is unfinished
-* The ssh-tunnel is not tested yet
-
+This  software is tested on Ubuntu systems. 
 
 
 ## CONTRIBUTING
