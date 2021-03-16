@@ -318,11 +318,12 @@ install_simple_monitor(){
 		$access_container  sudo apt-get install -y rvm elinks  git tmux # vim
 		$access_container  sudo usermod -a -G rvm ubuntu
 		$access_container  rvm install $RUBY_VERSION	 
-		$access_container  git clone https://github.com/ib-ruby/simple-monitor.git 
 		$access_container  gem install bundler  
+		$access_container  git clone $SIMPLE_MONITOR
+
 		lxc file push install_simple_monitor.sh $CONTAINER/home/ubuntu/
 		if [ $DEMOACCOUNT -eq 0 ] ; then
-			$access_container  sed -in 's/:host: localhost/&:4001/g'  /home/ubuntu/simple-monitor/tws_alias.yml
+			$access_container  sed -in 's/:host: localhost/&:4001/g'  /home/ubuntu/simple-monitor/config.yml
 		fi 
 		$access_container  ./install_simple_monitor.sh  
 		} >> $SILENT
@@ -418,7 +419,7 @@ setup_reverse_tunnel(){
 
 run_ats(){
 	# starte die IB-Software
-	local access_container="lxc exec $CONTAINER -- sudo --login --user ubuntu -- "
+	local access_container="lxc exec $CONTAINER -- sudo --login --user ubuntu --"
 	$access_container /home/ubuntu/ibc/${INSTANCE}start.sh -inline &
 	sleep 5
         $access_container /home/ubuntu/simple-monitor/start-simple-monitor

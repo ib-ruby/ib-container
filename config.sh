@@ -34,6 +34,8 @@ IB_PATH=https://download2.interactivebrokers.com/installers/$PRODUCT/latest-stan
 IBC_VERSION=3.8.5
 IBC_PATH=https://github.com/IbcAlpha/IBC/releases/download/${IBC_VERSION}/IBCLinux-${IBC_VERSION}.zip
 
+SIMPLE_MONITOR=https://github.com/ib-ruby/simple-monitor.git
+
 ## Täglicher Start von Gateway/TWS im crontab-Format (Minute Stunde)a
 ## When to start Gateawy/TWS by cron
 START_TIME='5 5'
