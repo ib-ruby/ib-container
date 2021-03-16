@@ -6,6 +6,7 @@ Provides a Container including a running TWS/Gateway  in an isolated environment
 * A reverse SSH-Tunnel is implemented for an extra layer of security
 * [Simple-Monitor](https://github.com/ib-ruby/simple-monitor) is started upon setup
 * Anything is prepared to run an reliable Trading-Bot in a secure environment
+* a suitable ruby installation to develope and run ib-ruby-trading solutions
 
 ## Background
 
