@@ -24,6 +24,9 @@ The `tws`-binary can operate as full GUI-Interface or as lightweight Gateway-App
 provides the proprietary `IB-API` and the `FIX-Protocol`, the industry standard to access trading-applications. 
 
 ## Setup
+
+Edit `config.sh` 
+
 The script `setup.sh` 
 * downloads and installs a minimized Ubuntu Linux Image  (Unbuntu 20.4 LTS)
 * downloads the official binaries from the interactive brokers server into the container
@@ -37,36 +40,13 @@ The script `setup.sh`
 
 Copy your Public SSH-Key to the IB-Container directory. This will grant SSH-access to the container.
 
-Edit the script and set or change default values, in particular `DEMOACCOUNT`.
-
-```
-### tws/gateway credentials  
-###  leave empty for interactive mode
-LOGIN=
-PASS=
-DEMOACCOUNT=1   # 1 or 0
-
-### predefine settings for ssh-tunnel
-SSH_MIDDLEMAN_SERVER=
-SSH_MIDDLEMAN_USER=
-```
-
-
-Run the Bash-Script by
-
-```
-> chmod a+x setup.sh
-> ./setup.sh name_cof container  ib-login ib-password
-```
-
-
 
 ## Arguments
 
 The script is called with up to six arguments
 
 ```
-> bash setup.sh {name of the container default= t1}  [ required ]
+> bash setup.sh {name of the container}  
                 {ib login}
                 {ib password}
                 {port of the reverse ssh tunnel default= random number}
@@ -74,7 +54,7 @@ The script is called with up to six arguments
                 {username on the middleman server default=actual username}
 
 ```
-Except for the container name, all arguments are requested interactively if absent
+All arguments are requested interactively if absent
 
 ## Finishing
 
