@@ -6,6 +6,8 @@
 ### Setup networking ans implement a secure login via ssh-tunnel
 ### Start simple-monitor
 
+
+
 ### Parameter
 #### $1          name of the container
 #### $2          ib-login
@@ -20,135 +22,68 @@
 ### * Put the public ssh certificate of the middleman server into the working dir of this script
 
 
+source config.sh
 
-### tws/gateway credentials  
-###  leave empty for interactive mode
-LOGIN=
-PASS=
-DEMOACCOUNT=1   # 1 or 0
-
-### predefine settings for ssh-tunnel
-SSH_MIDDLEMAN_SERVER=
-SSH_MIDDLEMAN_USER=
-
-### Name des Containers
-### Kann entweder als Parameter übergeben werden oder unten eingesetzt
-if test -n "${1}"
-then
-	CONTAINER=${1}
-else
-	CONTAINER=t1     # specify container name
-fi
-
-### Welche Software soll genutzt werden
-### Es kann entweder der IB-Gateway oder die TWS als API-Server genutzt werden.
-### Die TWS kann entweder im Gatewaymodus oder als klassische GUI gestartet werden
-PRODUCT=tws  # ibgateway or tws
-INSTANCE=gateway   # gateway or tws
-
-IB_PROGRAM=$PRODUCT-latest-standalone-linux-x64.sh 
-IB_PATH=https://download2.interactivebrokers.com/installers/$PRODUCT/latest-standalone/$IB_PROGRAM
-
-IBC_VERSION=3.8.5
-IBC_PATH=https://github.com/IbcAlpha/IBC/releases/download/${IBC_VERSION}/IBCLinux-${IBC_VERSION}.zip
-
-## Täglicher Start von Gateway/TWS im crontab-Format (Minute Stunde)
-START_TIME='5 5'
-
-## Delay time 
-## Nach dem Aufsetzen eines LXD-Containers laufen noch Backgroundprozesse ab.
-## Es muss gewartet werden, bis diese abgeschlossen sind.
-## Auf langsamen Rechnern anpassen!
-LXD_DELAY=5 # sec
-
-
-### LXD-Requirements
-MIN_LXD_VERSION=4
-MIN_LXD_SUBVERSION=11
-
-### Ruby Version
-RUBY_VERSION=3.0.0
-
-
-
-####  return codes
-###
-###  2            falsche LDX-Version
-###  3            Container bereits angelegt
-###  4            Container konnte nicht richtig initialisiert werden (kein Netzwerk, Java nicht erfolgreich installiert) 
-###  99           LXD ist nicht gestartet oder nicht vorhanden
-###  255          Abbruch durch Nutzer           
-
-###################################################################################################################
-################## no modifications beyond this line ##############################################################
-###################################################################################################################
-### Speicherort der Konfiguration des ssh-tunnels
-SSH_TUNNEL_LOCATION="etc/network/if-up.d/reverse_ssh_tunnel"
-
-### Alle Ausgaben in die Datei containerbau.log umleiten
-logfile=containerbau.log
 if [ -f $logfile ] ; then  rm $logfile ; fi
 touch $logfile
 SILENT=$logfile
 
+if test -n "${1}"; then
+	CONTAINER=${1}
+elif  test  -z $CONTAINER  ; then
+	read -p "Name des Containers: " CONTAINER
+fi
+if test -z $CONTAINER ; then
+	echo "Es muss eine Bezeichnung für den Container angegeben werden!"
+	exit 255
+fi
 
-if test -n "${2}"
-then
+if test -n "${2}";  then
 	LOGIN=${2}
-else
-	if [[ -z $LOGIN ]] ; then  
-		read -p "Interactive Brokers Account Login: " LOGIN
-	fi
+elif  test  -z "$LOGIN"  ; then  
+	read -p "Interactive Brokers Account Login: " LOGIN
 fi
 
-if test -n "${3}"
-then
+if test -n "${3}"  ; then
 	PASS=${3}
-else
-	if [[ -z $PASS ]] ; then 
-		read -p "Interactive Brokers Account Password: " PASS 
-
-		read -p "Demoaccount? [y|N]:" answer
-		if [ ! $answer = 'y' ]  && [ ! $answer = 'j' ] ; then
-			DEMOACCOUNT=0
-		else 
-			DEMOACCOUNT=1
-		fi
-	fi
+elif  test  -z "$PASS"] ; then 
+	read -p "Interactive Brokers Account Password: " PASS 
+fi
+read -p "Demoaccount? [y|N]:" answer
+if [ ! $answer = 'y' ]  && [ ! $answer = 'j' ] ; then
+	DEMOACCOUNT=0
+else 
+	DEMOACCOUNT=1
 fi
 
-if test -n "${5}"
-then
+if test -n "${5}" ; then
 	SSH_MIDDLEMAN_SERVER=${5}
-else
-	if [[ -z $SSH_MIDDLEMAN_SERVER ]] ; then
+elif test -z "$SSH_MIDDLEMAN_SERVER"  ; then
 	read -p "Bezeichnung oder IP des Endpunkts des SSH-Tunnels [return=keinen Tunnel verwenden]: " SSH_MIDDLEMAN_SERVER
-	fi
-	if [[ -z $SSH_MIDDLEMAN_SERVER ]] ; then
-		SETUP_AUTOSSH=0
-	else
-		SETUP_AUTOSSH=1
-		if test -n "${4}"
-		then
-			SSH_PORT_NUMBER=${4}
-		else
-			echo "Erzeuge zufällige Ports ..."
-			SSH_PORT_NUMBER=$[ ( $RANDOM % 10000 )  + 10000 ]
-			read -p "Port für SSH-Tunnel [$SSH_PORT_NUMBER]: " port
-			if [[ -n $port ]] ; then
-				SSH_PORT_NUMBER=$port
-			fi
+fi
+if test -z $SSH_MIDDLEMAN_SERVER  ; then
+	SETUP_AUTOSSH=0
+else
+	SETUP_AUTOSSH=1
+	if test -n "${4}" ; then
+		SSH_PORT_NUMBER=${4}
+	elif test -z "$SSH_PORT_NUMBER" ;  then 	
+		echo "Erzeuge zufällige Ports ..."
+		SSH_PORT_NUMBER=$[ ( $RANDOM % 10000 )  + 10000 ]
+		read -p "Port für SSH-Tunnel [$SSH_PORT_NUMBER]: " port
+		if [ -n $port ] ; then
+			SSH_PORT_NUMBER=$port
 		fi
-		SSH_MONITORING_PORT_NUMBER=`expr $SSH_PORT_NUMBER + 10000`
-		if test -n "${6}" 
-		then
-			SSH_MIDDLEMAN_USER=${5}
-		else
-			user=`whoami`
-			read  -p "Benutzer auf dem Endpunkt des SSH-Tunnels: $SSH_MIDDLEMAN_SERVER:[$user] "  SSH_MIDDLEMAN_USER
-			if [[ -z $SSH_MIDDLEMAN_USER ]]; then
-				SSH_MIDDLEMAN_USER=$user
-			fi
+	fi
+	SSH_MONITORING_PORT_NUMBER=`expr $SSH_PORT_NUMBER + 10000`
+
+	if test -n "${6}" ; then
+		SSH_MIDDLEMAN_USER=${6}
+	elif test -z "$SSH_MIDDLEMAN_USER" ; then
+		user=`whoami`
+		read  -p "Benutzer auf dem Endpunkt des SSH-Tunnels: $SSH_MIDDLEMAN_SERVER:[$user] "  SSH_MIDDLEMAN_USER
+		if [[ -z $SSH_MIDDLEMAN_USER ]]; then
+			SSH_MIDDLEMAN_USER=$user
 		fi
 	fi
 fi
@@ -159,12 +94,15 @@ echo "Containter: $CONTAINER"
 echo "Login:      $LOGIN"
 echo "Password:  **** " #  $PASS"
 echo "Demoaccount: `if [ $DEMOACCOUNT -eq 1 ] ; then echo "ja"  ; else echo "nein"; fi ` "
-echo "PORT:       $SSH_PORT_NUMBER"
-echo "Backport:   $SSH_MONITORING_PORT_NUMBER"
-echo "Middleman:  $SSH_MIDDLEMAN_SERVER"
-echo "Middleman User: $SSH_MIDDLEMAN_USER"
+if [ $SETUP_AUTOSSH -eq 1 ] ; then
+	echo "PORT:       $SSH_PORT_NUMBER"
+	echo "Backport:   $SSH_MONITORING_PORT_NUMBER"
+	echo "Middleman:  $SSH_MIDDLEMAN_SERVER"
+	echo "Middleman User: $SSH_MIDDLEMAN_USER"
+else
+	echo "SSH-Tunnel wird nicht installiert "
 echo "......................................"
-
+fi
 read -p "Installieren? [Y/n]:" cont
 if  [[ -n $cont  ||  $cont == 'n' ]]  ; then
 	exit 255
