@@ -21,7 +21,7 @@
 ### * A running LXD Server 
 ### * Put the public ssh certificate of the middleman server into the working dir of this script
 
-
+export DEBIAN_FRONTEND=noninteractive
 source config.sh
 
 if [ -f $logfile ] ; then  rm $logfile ; fi
@@ -44,9 +44,9 @@ elif  test  -z "$LOGIN"  ; then
 	read -p "Interactive Brokers Account Login: " LOGIN
 fi
 
-if test -n "${3}"  ; then
+if test -n "${3}"; then
 	PASS=${3}
-elif  test  -z "$PASS"] ; then 
+elif  test  -z "$PASS" ; then 
 	read -p "Interactive Brokers Account Password: " PASS 
 fi
 read -p "Demoaccount? [y|N]:" answer
@@ -219,12 +219,12 @@ init_container(){
 		sleep $LXD_DELAY 
 
 		echo "Installiere Java  Das dauert einige Minuten ..."
-		$access_container  sudo apt update   >> $SILENT  
-		$access_container  sudo apt install -y openjdk-14-jre    >> $SILENT  	
+		$access_container  sudo apt-get update   >> $SILENT  
+		$access_container  sudo apt-get install -y openjdk-14-jre    >> $SILENT  	
 
 #	testen, ob java installiert ist: 
 #  $access_container dpkg -s openjdk-14-jre | grep -c installed 
-		echo "Falls java an dieser Stelle nicht installiert wurde ... wir holen dies später noch nach!"
+		echo "Falls java an dieser Stelle nicht installiert wurde ... wir holen dies später nach!"
 		lxc file push $IB_PROGRAM $CONTAINER/home/ubuntu/
 		echo "Installiere ${PRODUCT}.  Das dauert einige Minuten ..."
 		#$access_container DISPLAY= $IB_PROGRAM <<<""$'\n' 
@@ -257,9 +257,9 @@ apply_ibc(){
 		echo "Installation von IBC wird übersprungen."
 		echo "Es wird keine crontab installiert."
 	else
-		$access_container  sudo apt install -y  openjdk-14-jre    >> $SILENT  	
+		$access_container  sudo apt-get install -y  openjdk-14-jre    >> $SILENT  	
 		$access_container mkdir ibc
-		$access_container  sudo apt install -y unzip cron  >> $SILENT 
+		$access_container  sudo apt-get install -y unzip cron  >> $SILENT 
 		lxc file push $ibc_file $CONTAINER/home/ubuntu/ibc/
 		$access_container  unzip ibc/$ibc_file -d ibc   >> $SILENT 
 		$access_container  chmod a+x ibc/gatewaystart.sh
@@ -349,7 +349,7 @@ setup_reverse_tunnel(){
 	check_tunnel
         if [ $? -ne 0 ] ; then
 
-		$access_container sudo apt install -y openssh-server autossh  >> $SILENT  # add .ssh dir 
+		$access_container sudo apt-get install -y openssh-server autossh  >> $SILENT  # add .ssh dir 
 		lxc file push keygen.sh $CONTAINER/home/ubuntu/
 		$access_container /home/ubuntu/keygen.sh
 		# download public-key and install it locally
@@ -368,6 +368,7 @@ setup_reverse_tunnel(){
 
 		echo " Installiere lokal abgelegte Zertifikate im Container"
 		# install certificates to access the container via ssh and reverse ssh
+		touch certificates.sh
 		for certificate in *.pub 
 		do
 			[ -f $certificate ] || continue
@@ -375,11 +376,12 @@ setup_reverse_tunnel(){
 				:
 			else
 				echo "installiere $certificate "
-				lxc file push  $certificate $CONTAINER/home/ubuntu/
-				$access_container cat $certificate >> /home/ubuntu/.ssh/authorized_keys
-				$access_container rm $certificate 
+				cat $certificate >>  certificates.sh
 			fi
 		done
+		lxc file push  certificates.sh $CONTAINER/home/ubuntu/.ssh/authorized_keys
+		$access_container chmod 600 /home/ubuntu/.ssh/authorized_keys
+		rm certificates.sh
 
 		echo "#!/bin/sh
 
@@ -452,6 +454,8 @@ fi
 
  echo "Installiere simple-monitor " 
  install_simple_monitor 
+ 
+ export DEBIAN_FRONTEND=newt
  run_ats  
 
 
