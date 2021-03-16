@@ -13,7 +13,7 @@ Provides a Container including a running TWS/Gateway  in an isolated environment
 They offer a unified user experience around full Linux systems running inside containers or virtual machines.
 
 
-[IB-Container](https://github.com/ib-ruby/ib-container) provide a suitable environment to run applications addressing 
+[IB-Container](https://github.com/ib-ruby/ib-container) provides a suitable environment to run applications addressing 
 the TWS-API of Interactive Brokers. Several Container can safely run simultaneously and 24/7 on standard cloud-instances. 
 
 The broker provides two java-executables serving as API-Server
