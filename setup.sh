@@ -315,7 +315,7 @@ install_simple_monitor(){
 		$access_container  sudo apt-get install -y software-properties-common 
 		$access_container  sudo apt-add-repository -y ppa:rael-gc/rvm
 		$access_container  sudo apt-get update  
-		$access_container  sudo apt-get install -y rvm elinks  git tmux # vim
+		$access_container  sudo apt-get install -y rvm elinks git tmux $INSTALL_ADDITONAL_PROGRAMS
 		$access_container  sudo usermod -a -G rvm ubuntu
 		$access_container  rvm install $RUBY_VERSION	 
 		$access_container  gem install bundler  
@@ -323,7 +323,13 @@ install_simple_monitor(){
 
 		lxc file push install_simple_monitor.sh $CONTAINER/home/ubuntu/
 		if [ $DEMOACCOUNT -eq 0 ] ; then
+			if [ "$INSTANCE" = tws ] ; then
+			$access_container  sed -in 's/:host: localhost/&:7496/g'  /home/ubuntu/simple-monitor/config.yml
+			else
 			$access_container  sed -in 's/:host: localhost/&:4001/g'  /home/ubuntu/simple-monitor/config.yml
+			fi
+		elif [ "$INSTANCE" = tws ] ; then
+			$access_container  sed -in 's/:host: localhost/&:7497/g'  /home/ubuntu/simple-monitor/config.yml
 		fi 
 		$access_container  ./install_simple_monitor.sh  
 		} >> $SILENT

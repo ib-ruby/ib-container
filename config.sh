@@ -1,6 +1,6 @@
 #!/bin/bash
 ### ++++++++++++++++++++++++++++++++++++++++++++++
-## Config file to setup IB-Container
+##  Config file to setup IB-Container          +++
 ### ++++++++++++++++++++++++++++++++++++++++++++++
 
 ### tws/gateway credentials  
@@ -14,7 +14,7 @@ SSH_MIDDLEMAN_SERVER=
 SSH_MIDDLEMAN_USER=
 SSH_PORT_NUMBER=
 
-### Name of Containers
+### Name of Container
 CONTAINER=
 
 ### Welche Software soll genutzt werden
@@ -22,11 +22,11 @@ CONTAINER=
 ### Die TWS kann entweder im Gatewaymodus oder als klassische GUI gestartet werden
 
 ### Which program should be used
-### Either IB-Gateway or TWS are suitable  
+### Either 'ibgateway' or 'tws' are suitable  
 ### TWS can be started either as non-GUI Gateway or in classical GUI-Mode
 
 PRODUCT=tws  # ibgateway or tws       # do not change, actually only tws is supported
-INSTANCE=gateway   # gateway or tws   #
+INSTANCE=tws   # gateway or tws       # attention: the tws-output is displayed on the host of ib-container
 
 IB_PROGRAM=$PRODUCT-latest-standalone-linux-x64.sh 
 IB_PATH=https://download2.interactivebrokers.com/installers/$PRODUCT/latest-standalone/$IB_PROGRAM
@@ -60,6 +60,9 @@ SSH_TUNNEL_LOCATION="etc/network/if-up.d/reverse_ssh_tunnel"
 ### Alle Ausgaben in die Datei containerbau.log umleiten
 logfile=containerbau.log
 
+### Weitere Software
+### Liste von Debian-Paketnanen 
+INSTALL_ADDITONAL_PROGRAMS=  # "vim"  
 
 ####  return codes
 ###
