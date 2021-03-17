@@ -7,7 +7,7 @@
 ###  leave empty for interactive mode
 LOGIN=
 PASS=
-DEMOACCOUNT=1   # 1 or 0
+DEMOACCOUNT=   # 1 or 0
 
 ### predefine settings for ssh-tunnel
 SSH_MIDDLEMAN_SERVER=
@@ -25,18 +25,18 @@ CONTAINER=
 ### Either 'ibgateway' or 'tws' are suitable  
 ### TWS can be started either as non-GUI Gateway or in classical GUI-Mode
 
-PRODUCT=tws  # ibgateway or tws       # do not change, actually only tws is supported
-INSTANCE=tws   # gateway or tws       # attention: the tws-output is displayed on the host of ib-container
+readonly PRODUCT=tws  # ibgateway or tws       # do not change, actually only tws is supported
+readonly INSTANCE=gateway   # gateway or tws       # attention: the tws-output is displayed on the host of ib-container
 
 IB_PROGRAM=$PRODUCT-latest-standalone-linux-x64.sh 
-IB_PATH=https://download2.interactivebrokers.com/installers/$PRODUCT/latest-standalone/$IB_PROGRAM
+readonly IB_PATH=https://download2.interactivebrokers.com/installers/$PRODUCT/latest-standalone/$IB_PROGRAM
 
 IBC_VERSION=3.8.5
-IBC_PATH=https://github.com/IbcAlpha/IBC/releases/download/${IBC_VERSION}/IBCLinux-${IBC_VERSION}.zip
+readonly IBC_PATH=https://github.com/IbcAlpha/IBC/releases/download/${IBC_VERSION}/IBCLinux-${IBC_VERSION}.zip
 
-SIMPLE_MONITOR=https://github.com/ib-ruby/simple-monitor.git
+readonly SIMPLE_MONITOR=https://github.com/ib-ruby/simple-monitor.git
 
-## Täglicher Start von Gateway/TWS im crontab-Format (Minute Stunde)a
+## Täglicher Start von Gateway/TWS im crontab-Format (Minute Stunde)
 ## When to start Gateawy/TWS by cron
 START_TIME='5 5'
 

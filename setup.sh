@@ -24,6 +24,7 @@
 export DEBIAN_FRONTEND=noninteractive
 source config.sh
 
+
 if [ -f $logfile ] ; then  rm $logfile ; fi
 touch $logfile
 SILENT=$logfile
@@ -47,13 +48,16 @@ fi
 if test -n "${3}"; then
 	PASS=${3}
 elif  test  -z "$PASS" ; then 
-	read -p "Interactive Brokers Account Password: " PASS 
+	read -ps "Interactive Brokers Account Password: " PASS 
 fi
-read -p "Demoaccount? [y|N]:" answer
-if [ ! $answer = 'y' ]  && [ ! $answer = 'j' ] ; then
-	DEMOACCOUNT=0
-else 
-	DEMOACCOUNT=1
+
+if test -z $DEMOACCOUNT ; then
+	read -p "Demoaccount? [y|N]:" 
+	if [ ! $REPLY = 'y' ]  && [ ! $REPLY = 'j' ] ; then
+		DEMOACCOUNT=0
+	else 
+		DEMOACCOUNT=1
+	fi
 fi
 
 if test -n "${5}" ; then
@@ -61,6 +65,7 @@ if test -n "${5}" ; then
 elif test -z "$SSH_MIDDLEMAN_SERVER"  ; then
 	read -p "Bezeichnung oder IP des Endpunkts des SSH-Tunnels [return=keinen Tunnel verwenden]: " SSH_MIDDLEMAN_SERVER
 fi
+
 if test -z $SSH_MIDDLEMAN_SERVER  ; then
 	SETUP_AUTOSSH=0
 else
@@ -92,8 +97,9 @@ fi
 echo "-------------------------"
 echo "Containter: $CONTAINER"
 echo "Login:      $LOGIN"
-echo "Password:  **** " #  $PASS"
+echo "Password:   **** " #  $PASS"
 echo "Demoaccount: `if [ $DEMOACCOUNT -eq 1 ] ; then echo "ja"  ; else echo "nein"; fi ` "
+echo "Gateway/TWS: `if [ "$PRODUCT" =  tws ]  ; then echo "$INSTANCE" ; else echo "Gateway" ; fi `"
 if [ $SETUP_AUTOSSH -eq 1 ] ; then
 	echo "PORT:       $SSH_PORT_NUMBER"
 	echo "Backport:   $SSH_MONITORING_PORT_NUMBER"
@@ -107,6 +113,18 @@ read -p "Installieren? [Y/n]:" cont
 if  [[ -n $cont  ||  $cont == 'n' ]]  ; then
 	exit 255
 fi
+
+
+
+print_status(){  
+       	echo "[+] $*" 
+}
+print_error() { 
+      	echo "[!] $*"
+}
+
+
+
 
 check_lxd(){
 #LXD vereint die Vorteile virtueller Rechner (Xen et.\,al.)  und die Ressourceneffizienz von Containern (aka Docker). 
@@ -122,21 +140,21 @@ check_lxd(){
 ## Wir testen die Version
 
 	if [ `snap list | grep -c lxd ` -eq 1 ] ||  [ `systemctl is-active lxd.service` = "active" ] ; then
-		echo "LXD ist installiert und gestartet"
+		print_status "LXD ist installiert und gestartet"
 	else
-		echo "LXD ist nicht installiert oder nicht aktiv"
-		echo "Abbruch!"
+		print_error "LXD ist nicht installiert oder nicht aktiv"
+		print_error "Abbruch!"
 		exit 99
 	fi
 	lxd_version=`lxd --version  | awk -F'.' '{ print $1 }'`
 	lxd_subversion=`lxd --version  | awk -F'.' '{ print $2 }'`
 	if [ $lxd_version -lt $MIN_LXD_VERSION ] || [ $lxd_subversion -lt $MIN_LXD_SUBVERSION ] ; then
-		echo "LXD-Version nicht geeignet. "
-		echo "Mindestens 4.11 ist erforderlich. "
-		echo "`lxd --version` gefunden "
+		print_error "LXD-Version nicht geeignet. "
+		print_error "Mindestens 4.11 ist erforderlich. "
+		print_error "`lxd --version` gefunden "
 		return 1
 	else
-		echo "LXD version `lxd --version` installiert  --- OK"
+		print_status  "LXD version `lxd --version` installiert  --- OK"
 		return 0
 	fi
 }
@@ -144,7 +162,7 @@ check_lxd(){
 prepare_lxd(){
 ## Ist Ubuntu-Minimal bereits als Remote angelegt?
 	if lxc remote list | grep -q ubuntu-minimal  ; then
-		echo "Ubuntu-minimal ist bereits als remote gelistet"
+		print_status "Ubuntu-minimal ist bereits als remote gelistet"
 	else
 		lxc remote add --protocol simplestreams ubuntu-minimal https://cloud-images.ubuntu.com/minimal/releases/
 	fi
@@ -153,16 +171,16 @@ prepare_lxd(){
 #
 #Aufsetzen für X11-Nutzung
 
-	if [ -f  lxdguiprofile.txt ] ; then
-		echo "GUI-Profilidatei ist bereits heruntergeladen"
+	if test -f  lxdguiprofile.txt  ; then
+		print_status "GUI-Profilidatei ist bereits heruntergeladen"
 	else
 		wget https://blog.simos.info/wp-content/uploads/2018/06/lxdguiprofile.txt  -o lxdguiprofile.txt
 	fi
-	if lxc profile list | grep -q gui ;  then
-		echo "GUI Profil ist bereits angelegt"
+	if lxc profile show gui 1>/dev/null;  then
+		print_status "GUI Profil ist bereits angelegt"
 	else
 		lxc profile create gui
-		cat lxdguiprofile.txt | lxc profile edit gui 
+	        lxc profile edit gui < lxdguiprofile.txt
 		# alias anlegen
 		lxc alias add  ubuntu  'exec @ARGS@ -- sudo --login --user ubuntu' 
 	fi
@@ -176,7 +194,7 @@ launch_image(){
 		return 1
 	else
 		lxc launch --profile default --profile gui  ubuntu-minimal:f $CONTAINER
-		echo "$LXD_DELAY Sekunden warten, bis das Netzwerk betriebsbereit ist"
+		print_status "$LXD_DELAY Sekunden warten, bis das Netzwerk betriebsbereit ist"
 		sleep $LXD_DELAY 
 		return 0
 	fi
@@ -187,7 +205,7 @@ download_ib_software(){
 	if [ -f $IB_PROGRAM ] ; then
 		:
 	else	
-		echo "Hole $PRODUCT vom offiziellen Server"
+		print_status "Hole $PRODUCT vom offiziellen Server"
 		wget $IB_PATH
 		chmod a+x $IB_PROGRAM
 	fi
@@ -201,7 +219,7 @@ check_container(){
 	if lxc list | grep -q $CONTAINER && [ `lxc list | grep $CONTAINER | awk -F '|' '{ print $3 }' ` = "RUNNING" ] && [ `lxc list | grep $CONTAINER |  awk -F'|' '{ if($4 ~ /[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}/ ) {print 1} else {print 0}}'` -eq 1 ] ; then
 		return 0
 	else
-		echo 'Networking is not active'
+		print_error 'Networking is not active'
 		return  1
 	fi
 }
@@ -213,26 +231,26 @@ init_container(){
 ## TWS / Gateway installieren
 	local access_container="lxc exec $CONTAINER -- sudo --login --user ubuntu --"
 	if [ `$access_container ls  /home/ubuntu | wc -l `  -eq 0 ]  ; then
-		echo "Home-Directory des Containers ist leer"
-		echo "Installiere $PRODUCT"
-		echo "warte $LXD_DELAY  Sekunden bis sich der Container initialisiert hat"
+		print_status "Home-Directory des Containers ist leer"
+		print_status "Installiere $PRODUCT"
+		print_status "warte $LXD_DELAY  Sekunden bis sich der Container initialisiert hat"
 		sleep $LXD_DELAY 
 
-		echo "Installiere Java  Das dauert einige Minuten ..."
+		print_status "Installiere Java  Das dauert einige Minuten ..."
 		$access_container  sudo apt-get update   >> $SILENT  
 		$access_container  sudo apt-get install -y openjdk-14-jre    >> $SILENT  	
 
 #	testen, ob java installiert ist: 
 #  $access_container dpkg -s openjdk-14-jre | grep -c installed 
-		echo "Falls java an dieser Stelle nicht installiert wurde ... wir holen dies später nach!"
+		print_error "Falls java an dieser Stelle nicht installiert wurde ... wir holen dies später nach!"
 		lxc file push $IB_PROGRAM $CONTAINER/home/ubuntu/
-		echo "Installiere ${PRODUCT}.  Das dauert einige Minuten ..."
+		print_status "Installiere ${PRODUCT}.  Das dauert einige Minuten ..."
 		#$access_container DISPLAY= $IB_PROGRAM <<<""$'\n' 
 		lxc exec --user 1000 --group 1000 --env "DISPLAY=" $CONTAINER -- bash --login /home/ubuntu/$IB_PROGRAM <<<""$'\n'  >> $SILENT
 # >> $SILENT 
 		return 0
 	else
-		echo "Container ist nicht leer. Konfiguration übersprungen!"
+		print_error "Container ist nicht leer. Konfiguration übersprungen!"
 		return 1
 	fi
 }
@@ -246,16 +264,16 @@ apply_ibc(){
 	local ibc_file=IBCLinux-$IBC_VERSION.zip 
 	local access_container="lxc exec $CONTAINER -- sudo --login --user ubuntu -- "
 	if [ -f  $ibc_file ] ; then
-		echo "IBC-$IBC_VERSION ist bereits lokal vorhanden "
+		print_status "IBC-$IBC_VERSION ist bereits lokal vorhanden "
 	else	
-		echo "Hole IBC-Archiv  vom GitHub-Server"
+		print_status  "Hole IBC-Archiv  vom GitHub-Server"
 		wget $IBC_PATH  >> $SILENT 
 	fi
 	## Erstelle ibc-Verzeichnis im Container
 	if [ `$access_container find /home/ubuntu -type d -name ibc | wc -l ` -ne  0 ] ; then
-		echo "Verzeichnis ibc bereits vorhanden. "
-		echo "Installation von IBC wird übersprungen."
-		echo "Es wird keine crontab installiert."
+		print_error "Verzeichnis ibc bereits vorhanden. "
+		print_error "Installation von IBC wird übersprungen."
+		print_error "Es wird keine crontab installiert."
 	else
 		$access_container  sudo apt-get install -y  openjdk-14-jre    >> $SILENT  	
 		$access_container mkdir ibc
@@ -308,7 +326,7 @@ install_simple_monitor(){
 	# Simple-Monitor installieren
 	local access_container="lxc exec $CONTAINER -- sudo --login --user ubuntu --"
 	if [ `$access_container find /home/ubuntu -type d -name simple-monitor | wc -l ` -ne  0 ] ; then
-		echo "simple monitor ist bereits angelegt"
+		print_status "simple monitor ist bereits angelegt"
 		return 1
 	else 
 		{
@@ -372,7 +390,7 @@ setup_reverse_tunnel(){
 		echo " ++++++++++++++++++++++++++++++++++++++++++++++ "
 		read -p "nach <CR>   gehts weiter"   read
 
-		echo " Installiere lokal abgelegte Zertifikate im Container"
+		print_status " Installiere lokal abgelegte Zertifikate im Container"
 		# install certificates to access the container via ssh and reverse ssh
 		touch certificates.sh
 		for certificate in *.pub 
@@ -381,7 +399,7 @@ setup_reverse_tunnel(){
 			if [ "$certificate" = dummy.pub ]  || [ "$certificate" = $CONTAINER.pub ] ; then
 				:
 			else
-				echo "installiere $certificate "
+				print_status "installiere $certificate "
 				cat $certificate >>  certificates.sh
 			fi
 		done
@@ -412,16 +430,16 @@ setup_reverse_tunnel(){
 		lxc file push reverse-tunnel ${CONTAINER}/${SSH_TUNNEL_LOCATION}
 		rm reverse-tunnel
 
-		echo "SSH-Tunnel wird installiert." 
+		print_status "SSH-Tunnel wird installiert." 
 
 		lxc exec  $CONTAINER -- /$SSH_TUNNEL_LOCATION
 		sleep 3
 	fi
 	check_tunnel
 	if [ $? -eq 0 ] ; then 
-		echo "Revese Tunnel ist gestartet"
+		print_status "Revese Tunnel ist gestartet"
 	else
-		echo "Restart des Containers erforderlich für den Start des Reverse SSH Tunnels"
+		print_error "Restart des Containers erforderlich für den Start des Reverse SSH Tunnels"
 	fi
 }
 
@@ -445,23 +463,23 @@ launch_image
 download_ib_software
 
 init_container
-echo " +++++++++++++++++++++++++++++++++++++++ "
-echo " Container ${CONTAINER} ist angelegt     "
+print_status " +++++++++++++++++++++++++++++++++++++++ "
+print_status " Container ${CONTAINER} ist angelegt     "
 
 if [ $SETUP_AUTOSSH -eq 1 ] ; then 
 	setup_reverse_tunnel
-	echo " Reverse Tunnel ist aufgebaut      "
+	print_status " Reverse Tunnel ist aufgebaut      "
 fi
 
 
 
- echo "Installiere IBC " 
+ print_status "Installiere IBC " 
  apply_ibc  
 
- echo "Installiere simple-monitor " 
+ print_status "Installiere simple-monitor " 
  install_simple_monitor 
  
- export DEBIAN_FRONTEND=newt
  run_ats  
 
+ export DEBIAN_FRONTEND=newt
 
