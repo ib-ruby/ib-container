@@ -174,7 +174,7 @@ prepare_lxd(){
 	if test -f  lxdguiprofile.txt  ; then
 		print_status "GUI-Profilidatei ist bereits heruntergeladen"
 	else
-		wget https://blog.simos.info/wp-content/uploads/2018/06/lxdguiprofile.txt  -o lxdguiprofile.txt
+		wget https://blog.simos.info/wp-content/uploads/2018/06/lxdguiprofile.txt  
 	fi
 	if lxc profile show gui 1>/dev/null;  then
 		print_status "GUI Profil ist bereits angelegt"
