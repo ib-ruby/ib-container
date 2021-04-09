@@ -1,0 +1,11 @@
+--2021-03-13 08:51:42--  https://blog.simos.info/wp-content/uploads/2018/06/lxdguiprofile.txt
+Auflösen des Hostnamens blog.simos.info (blog.simos.info) … 163.172.159.205
+Verbindungsaufbau zu blog.simos.info (blog.simos.info)|163.172.159.205|:443 … verbunden.
+HTTP-Anforderung gesendet, auf Antwort wird gewartet … 200 OK
+Länge: 614 [text/plain]
+Wird in »lxdguiprofile.txt.1« gespeichert.
+
+     0K                                                       100% 68,2M=0s
+
+2021-03-13 08:51:43 (68,2 MB/s) - »lxdguiprofile.txt.1« gespeichert [614/614]
+
