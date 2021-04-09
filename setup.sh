@@ -24,6 +24,15 @@
 export DEBIAN_FRONTEND=noninteractive
 source config.sh
 
+print_status(){  
+       	echo "[+] $*" 
+}
+print_error() { 
+      	echo "[!] $*"
+}
+print_question() { 
+      	echo "[?] $*"
+}
 
 if [ -f $logfile ] ; then  rm $logfile ; fi
 touch $logfile
@@ -32,27 +41,27 @@ SILENT=$logfile
 if test -n "${1}"; then
 	CONTAINER=${1}
 elif  test  -z $CONTAINER  ; then
-	read -p "Name des Containers: " CONTAINER
+	read -p "[?] Name des Containers: " CONTAINER
 fi
 if test -z $CONTAINER ; then
-	echo "Es muss eine Bezeichnung für den Container angegeben werden!"
+	print_error "Es muss eine Bezeichnung für den Container angegeben werden!"
 	exit 255
 fi
 
 if test -n "${2}";  then
 	LOGIN=${2}
 elif  test  -z "$LOGIN"  ; then  
-	read -p "Interactive Brokers Account Login: " LOGIN
+	read -p "[?] Interactive Brokers Account Login: " LOGIN
 fi
 
 if test -n "${3}"; then
 	PASS=${3}
 elif  test  -z "$PASS" ; then 
-	read -ps "Interactive Brokers Account Password: " PASS 
+	read -ps "[?] Interactive Brokers Account Password: " PASS 
 fi
 
 if test -z $DEMOACCOUNT ; then
-	read -p "Demoaccount? [y|N]:" 
+	read -p "[?] Demoaccount? [y|N]:" 
 	if [ ! $REPLY = 'y' ]  && [ ! $REPLY = 'j' ] ; then
 		DEMOACCOUNT=0
 	else 
@@ -63,7 +72,7 @@ fi
 if test -n "${5}" ; then
 	SSH_MIDDLEMAN_SERVER=${5}
 elif test -z "$SSH_MIDDLEMAN_SERVER"  ; then
-	read -p "Bezeichnung oder IP des Endpunkts des SSH-Tunnels [return=keinen Tunnel verwenden]: " SSH_MIDDLEMAN_SERVER
+	read -p "[?] Bezeichnung oder IP des Endpunkts des SSH-Tunnels [return=keinen Tunnel verwenden]: " SSH_MIDDLEMAN_SERVER
 fi
 
 if test -z $SSH_MIDDLEMAN_SERVER  ; then
@@ -73,9 +82,9 @@ else
 	if test -n "${4}" ; then
 		SSH_PORT_NUMBER=${4}
 	elif test -z "$SSH_PORT_NUMBER" ;  then 	
-		echo "Erzeuge zufällige Ports ..."
+		print_status  "Erzeuge zufällige Ports ..."
 		SSH_PORT_NUMBER=$[ ( $RANDOM % 10000 )  + 10000 ]
-		read -p "Port für SSH-Tunnel [$SSH_PORT_NUMBER]: " port
+		read -p "[?] Port für SSH-Tunnel [$SSH_PORT_NUMBER]: " port
 		if [ -n $port ] ; then
 			SSH_PORT_NUMBER=$port
 		fi
@@ -86,42 +95,43 @@ else
 		SSH_MIDDLEMAN_USER=${6}
 	elif test -z "$SSH_MIDDLEMAN_USER" ; then
 		user=`whoami`
-		read  -p "Benutzer auf dem Endpunkt des SSH-Tunnels: $SSH_MIDDLEMAN_SERVER:[$user] "  SSH_MIDDLEMAN_USER
+		read  -p "[?] Benutzer auf dem Endpunkt des SSH-Tunnels: $SSH_MIDDLEMAN_SERVER:[$user] "  SSH_MIDDLEMAN_USER
 		if [[ -z $SSH_MIDDLEMAN_USER ]]; then
 			SSH_MIDDLEMAN_USER=$user
 		fi
 	fi
 fi
-
-
-echo "-------------------------"
-echo "Containter: $CONTAINER"
-echo "Login:      $LOGIN"
-echo "Password:   **** " #  $PASS"
-echo "Demoaccount: `if [ $DEMOACCOUNT -eq 1 ] ; then echo "ja"  ; else echo "nein"; fi ` "
-echo "Gateway/TWS: `if [ "$PRODUCT" =  tws ]  ; then echo "$INSTANCE" ; else echo "Gateway" ; fi `"
-if [ $SETUP_AUTOSSH -eq 1 ] ; then
-	echo "PORT:       $SSH_PORT_NUMBER"
-	echo "Backport:   $SSH_MONITORING_PORT_NUMBER"
-	echo "Middleman:  $SSH_MIDDLEMAN_SERVER"
-	echo "Middleman User: $SSH_MIDDLEMAN_USER"
+read -p  "[?] Gateway Ausgabe in Framebuffer umleiten? [Y/n]:" cont
+if  [[ -n $cont  ||  $cont == 'n' ]]  ; then
+        TWS_DISPLAY=:0
 else
-	echo "SSH-Tunnel wird nicht installiert "
-echo "......................................"
+	TWS_DISPLAY=:99
 fi
-read -p "Installieren? [Y/n]:" cont
+
+
+print_status "......................................"
+print_status "Containter: $CONTAINER"
+print_status "Login:      $LOGIN"
+print_status "Password:   **** " #  $PASS"
+print_status "Demoaccount: `if [ $DEMOACCOUNT -eq 1 ] ; then echo "ja"  ; else echo "nein"; fi ` "
+print_status "Gateway/TWS: `if [ "$PRODUCT" =  tws ]  ; then echo "$INSTANCE" ; else echo "Gateway" ; fi `"
+if [ $SETUP_AUTOSSH -eq 1 ] ; then
+	print_status "PORT:       $SSH_PORT_NUMBER"
+	print_status "Backport:   $SSH_MONITORING_PORT_NUMBER"
+	print_status "Middleman:  $SSH_MIDDLEMAN_SERVER"
+	print_status "Middleman User: $SSH_MIDDLEMAN_USER"
+else
+	print_status "SSH-Tunnel wird nicht installiert "
+fi
+print_status "Ausgabe für Gateway: $TWS_DISPLAY "
+print_status "......................................"
+read -p "[?] Installieren? [Y/n]:" cont
 if  [[ -n $cont  ||  $cont == 'n' ]]  ; then
 	exit 255
 fi
 
 
 
-print_status(){  
-       	echo "[+] $*" 
-}
-print_error() { 
-      	echo "[!] $*"
-}
 
 
 
@@ -182,7 +192,7 @@ prepare_lxd(){
 		lxc profile create gui
 	        lxc profile edit gui < lxdguiprofile.txt
 		# alias anlegen
-		lxc alias add  ubuntu  'exec @ARGS@ -- sudo --login --user ubuntu' 
+		lxc alias add  open  'exec @ARGS@ -- sudo --login --user ubuntu' 
 	fi
 
 }
@@ -238,6 +248,7 @@ init_container(){
 
 		print_status "Installiere Java  Das dauert einige Minuten ..."
 		$access_container  sudo apt-get update   >> $SILENT  
+
 		$access_container  sudo apt-get install -y openjdk-14-jre    >> $SILENT  	
 
 #	testen, ob java installiert ist: 
@@ -253,6 +264,21 @@ init_container(){
 		print_error "Container ist nicht leer. Konfiguration übersprungen!"
 		return 1
 	fi
+}
+
+
+setup_xvfb(){
+	local access_container="lxc exec $CONTAINER -- sudo --login --user ubuntu --"
+	$access_container  sudo apt-get install -y xvfb  >> $SILENT  
+	lxc file push xvfb.service $CONTAINER/home/ubuntu/
+	$access_container sudo mv /home/ubuntu/xvfb.service /lib/systemd/system/xvfb.service
+	$access_container sudo chmod +x /lib/systemd/system/xvfb.service
+	$access_container sudo systemctl enable /lib/systemd/system/xvfb.service
+	$access_container sudo systemctl start xvfb.service
+	# autostart xvfb
+	$access_container sudo systemctl enable xvfb
+#	$access_container export DISPLAY=:99
+	
 }
 
 apply_ibc(){
@@ -288,10 +314,10 @@ apply_ibc(){
 		if [ $DEMOACCOUNT -eq 1 ] ; then
 			$access_container sed -in ' 143 s/=live/=paper/ ' /home/ubuntu/ibc/config.ini
 #			AcceptNonBrokerageAccountWarning=no
-			$access_container sed -in ' 321 s/=no/=yes/ ' /home/ubuntu/ibc/config.ini
+			$access_container sed -in ' 322 s/=no/=yes/ ' /home/ubuntu/ibc/config.ini
 		fi
 #		MinimizeMainWindow=no
-		$access_container sed -in ' 206 s/=no/=yes/ ' /home/ubuntu/ibc/config.ini
+#		$access_container sed -in ' 207 s/=no/=yes/ ' /home/ubuntu/ibc/config.ini
 		if [ "$PRODUCT" = "tws" ] ; then
 			$access_container sed -in ' 21 s/978/981/ ' /home/ubuntu/ibc/twsstart.sh 
 #			$access_container sed -in ' 23 s/=/=paper/ ' /home/ubuntu/ibc/twsstart.sh 
@@ -304,15 +330,33 @@ apply_ibc(){
 		$access_container sed -in ' 25 s/\/opt/\~/ ' /home/ubuntu/ibc/gatewaystart.sh
 		touch ibc_cronfile
 		local lxd_display=`$access_container echo $DISPLAY`
-		echo 'START_TIME * * 1-5 export DISPLAY=ibc-display && /bin/bash /home/ubuntu/ibc/gatewaystart.sh -inline' > ibc_cronfile
-		sed  -e  " 1 s/ibc-display/$lxd_display/ " -e " 1 s/START_TIME/$START_TIME/ " ibc_cronfile > t_c
-		if [ $INSTANCE = "tws" ] ; then
-			sed -in ' s/gateway/tws/ ' t_c
+		# set display , if no DISPLAY setting is found, use :99 (xvfb)
+		if [ $lxd_display ] ; then 
+			if [ "$TWS_DISPLAY" == ":0" ] ; then
+				TWS_DISPLAY=$lxd_display
+			fi
+		else
+#			$access_container  export DISPLAY=:99 
+			TWS_DISPLAY=:99
 		fi
 
-		lxc file push t_c $CONTAINER/home/ubuntu/ibc_cronfile
-		rm t_c
+		echo 'START_TIME * * 1-5 export DISPLAY=ibc-display && /bin/bash /home/ubuntu/ibc/gatewaystart.sh -inline' > ibc_cronfile
+		if [ $INSTANCE = "tws" ] ; then
+			sed -in ' s/gateway/tws/ ' ibc_cronfile
+			sed -in ' s/ibc-display/$lxd_display/ ' ibc_cronfile
+		else
+			sed -in " s/ibc-display/$TWS_DISPLAY/ " ibc_cronfile
+		fi
+		sed -in  " s/START_TIME/$START_TIME/ "  ibc_cronfile 
+
+		lxc file push ibc_cronfile $CONTAINER/home/ubuntu/
 		rm ibc_cronfile
+		lxc file push start_framebuffer_gateway.sh  $CONTAINER/home/ubuntu/
+		lxc file push start_gateway.sh  $CONTAINER/home/ubuntu/
+		lxc file push kill_gateway.sh  $CONTAINER/home/ubuntu/
+		$access_container chmod a+x start_framebuffer_gateway.sh 
+		$access_container chmod a+x start_gateway.sh 
+		$access_container chmod a+x kill_gateway.sh 
 		$access_container  crontab -u ubuntu /home/ubuntu/ibc_cronfile 
 		$access_container  rm /home/ubuntu/ibc_cronfile 
 	fi
@@ -447,6 +491,7 @@ run_ats(){
 	# starte die IB-Software
 	local access_container="lxc exec $CONTAINER -- sudo --login --user ubuntu --"
 	$access_container /home/ubuntu/ibc/${INSTANCE}start.sh -inline &
+	$access_container /home/ubuntu/ibc/${INSTANCE}start.sh -inline &
 	sleep 5
         $access_container /home/ubuntu/simple-monitor/start-simple-monitor
 	return 0
@@ -463,9 +508,11 @@ launch_image
 download_ib_software
 
 init_container
-print_status " +++++++++++++++++++++++++++++++++++++++ "
+print_status "......................................"
 print_status " Container ${CONTAINER} ist angelegt     "
 
+setup_xvfb
+print_status " Framebuffer device eingerichtet         "
 if [ $SETUP_AUTOSSH -eq 1 ] ; then 
 	setup_reverse_tunnel
 	print_status " Reverse Tunnel ist aufgebaut      "
@@ -473,10 +520,10 @@ fi
 
 
 
- print_status "Installiere IBC " 
+ print_status " Installiere IBC " 
  apply_ibc  
 
- print_status "Installiere simple-monitor " 
+ print_status " Installiere simple-monitor " 
  install_simple_monitor 
  
  run_ats  
