@@ -3,10 +3,12 @@
 Provides a Container including a running TWS/Gateway  in an isolated environment. 
 
 * The TWS/Gateway is restarted once a day
+* Framebuffer device to redirect Gateway-Output
+* X11 integration to run GUI-applications inside the container
 * A reverse SSH-Tunnel is implemented for an extra layer of security
 * [Simple-Monitor](https://github.com/ib-ruby/simple-monitor) is started upon setup
 * Anything is prepared to run an reliable Trading-Bot in a secure environment
-* a suitable ruby installation to develope and run ib-ruby-trading solutions
+* A suitable ruby installation to develop and run ib-ruby-trading solutions
 
 ## Background
 
@@ -29,7 +31,7 @@ provides the proprietary `IB-API` and the `FIX-Protocol`, the industry standard 
 Edit `config.sh` 
 
 The script `setup.sh` 
-* downloads and installs a minimized Ubuntu Linux Image  (Unbuntu 20.4 LTS)
+* downloads and installs a minimized Ubuntu Linux Image  (Ubuntu 20.4 LTS)
 * downloads the official binaries from the interactive brokers server into the container
 * downloads the [IBC](https://github.com/IbcAlpha/IBC) automation software providing  tws/gateway-autostart
 * prepares the container to run ruby programs
@@ -57,6 +59,13 @@ The script is called with up to six arguments
 ```
 All arguments are requested interactively if absent
 
+After successfully initializing the container, the gateway is started (output goes into the framebuffer) and a TMUX-Session 
+is opened. [Simple-Monitor](https://github.com/ib-ruby/simple-monitor)  is autostarted. 
+
+The Control-Key is **CRTL A**;  _CRTL A d_ detaches from the session. 
+
+The container is accessible (with X11 support)  through: `lxc open {container name}`
+
 ## Finishing
 
 On your Middleman Server, edit `~.ssh/config` and add the reverse tunnel specification
@@ -81,7 +90,7 @@ This  software is tested on Ubuntu systems.
 
 ## ToDo
 
-* Implement adressing the ibgateway  application and enable the fix protocol
+* Implement addressing the ibgateway  application and enable the fix protocol
 
 ## CONTRIBUTING
 

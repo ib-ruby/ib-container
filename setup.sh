@@ -101,13 +101,19 @@ else
 		fi
 	fi
 fi
+read -p  "[?] Gateway Ausgabe in Framebuffer umleiten? [Y/n]:" cont
+if  [[ -n $cont  ||  $cont == 'n' ]]  ; then
+        TWS_DISPLAY=:0
+else
+	TWS_DISPLAY=:99
+fi
 
 
-print_status "-------------------------"
+print_status "......................................"
 print_status "Containter: $CONTAINER"
 print_status "Login:      $LOGIN"
 print_status "Password:   **** " #  $PASS"
-print_tatus "Demoaccount: `if [ $DEMOACCOUNT -eq 1 ] ; then echo "ja"  ; else echo "nein"; fi ` "
+print_status "Demoaccount: `if [ $DEMOACCOUNT -eq 1 ] ; then echo "ja"  ; else echo "nein"; fi ` "
 print_status "Gateway/TWS: `if [ "$PRODUCT" =  tws ]  ; then echo "$INSTANCE" ; else echo "Gateway" ; fi `"
 if [ $SETUP_AUTOSSH -eq 1 ] ; then
 	print_status "PORT:       $SSH_PORT_NUMBER"
@@ -116,15 +122,9 @@ if [ $SETUP_AUTOSSH -eq 1 ] ; then
 	print_status "Middleman User: $SSH_MIDDLEMAN_USER"
 else
 	print_status "SSH-Tunnel wird nicht installiert "
-print_status "......................................"
-fi
-read -p  "[?] Gateway Ausgabe in Framebuffer umleiten? [Y/n]:" cont
-if  [[ -n $cont  ||  $cont == 'n' ]]  ; then
-        TWS_DISPLAY=:99
-else
-	TWS_DISPLAY=:0
 fi
 print_status "Ausgabe für Gateway: $TWS_DISPLAY "
+print_status "......................................"
 read -p "[?] Installieren? [Y/n]:" cont
 if  [[ -n $cont  ||  $cont == 'n' ]]  ; then
 	exit 255
@@ -192,7 +192,7 @@ prepare_lxd(){
 		lxc profile create gui
 	        lxc profile edit gui < lxdguiprofile.txt
 		# alias anlegen
-		lxc alias add  ubuntu  'exec @ARGS@ -- sudo --login --user ubuntu' 
+		lxc alias add  open  'exec @ARGS@ -- sudo --login --user ubuntu' 
 	fi
 
 }
@@ -212,7 +212,7 @@ launch_image(){
 
 
 download_ib_software(){
-	istf [ -f $IB_PROGRAM ] ; then
+	if [ -f $IB_PROGRAM ] ; then
 		:
 	else	
 		print_status "Hole $PRODUCT vom offiziellen Server"
@@ -332,21 +332,31 @@ apply_ibc(){
 		local lxd_display=`$access_container echo $DISPLAY`
 		# set display , if no DISPLAY setting is found, use :99 (xvfb)
 		if [ $lxd_display ] ; then 
-			: 
+			if [ "$TWS_DISPLAY" == ":0" ] ; then
+				TWS_DISPLAY=$lxd_display
+			fi
 		else
-			$access_container  export DISPLAY=:99 
-			local lxd_display=`$access_container echo $DISPLAY`
+#			$access_container  export DISPLAY=:99 
+			TWS_DISPLAY=:99
 		fi
 
 		echo 'START_TIME * * 1-5 export DISPLAY=ibc-display && /bin/bash /home/ubuntu/ibc/gatewaystart.sh -inline' > ibc_cronfile
-		sed  -e  " 1 s/ibc-display/$lxd_display/ " -e " 1 s/START_TIME/$START_TIME/ " ibc_cronfile > t_c
 		if [ $INSTANCE = "tws" ] ; then
-			sed -in ' s/gateway/tws/ ' t_c
+			sed -in ' s/gateway/tws/ ' ibc_cronfile
+			sed -in ' s/ibc-display/$lxd_display/ ' ibc_cronfile
+		else
+			sed -in " s/ibc-display/$TWS_DISPLAY/ " ibc_cronfile
 		fi
+		sed -in  " s/START_TIME/$START_TIME/ "  ibc_cronfile 
 
-		lxc file push t_c $CONTAINER/home/ubuntu/ibc_cronfile
-		rm t_c
+		lxc file push ibc_cronfile $CONTAINER/home/ubuntu/
 		rm ibc_cronfile
+		lxc file push start_framebuffer_gateway.sh  $CONTAINER/home/ubuntu/
+		lxc file push start_gateway.sh  $CONTAINER/home/ubuntu/
+		lxc file push kill_gateway.sh  $CONTAINER/home/ubuntu/
+		$access_container chmod a+x start_framebuffer_gateway.sh 
+		$access_container chmod a+x start_gateway.sh 
+		$access_container chmod a+x kill_gateway.sh 
 		$access_container  crontab -u ubuntu /home/ubuntu/ibc_cronfile 
 		$access_container  rm /home/ubuntu/ibc_cronfile 
 	fi
@@ -481,6 +491,7 @@ run_ats(){
 	# starte die IB-Software
 	local access_container="lxc exec $CONTAINER -- sudo --login --user ubuntu --"
 	$access_container /home/ubuntu/ibc/${INSTANCE}start.sh -inline &
+	$access_container /home/ubuntu/ibc/${INSTANCE}start.sh -inline &
 	sleep 5
         $access_container /home/ubuntu/simple-monitor/start-simple-monitor
 	return 0
@@ -497,7 +508,7 @@ launch_image
 download_ib_software
 
 init_container
-print_status " +++++++++++++++++++++++++++++++++++++++ "
+print_status "......................................"
 print_status " Container ${CONTAINER} ist angelegt     "
 
 setup_xvfb
