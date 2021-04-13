@@ -26,16 +26,23 @@ CONTAINER=
 ### TWS can be started either as non-GUI Gateway or in classical GUI-Mode
 
 readonly PRODUCT=tws  # ibgateway or tws       # do not change, actually only tws is supported
-readonly INSTANCE=gateway   # gateway or tws       # attention: the tws-output is displayed on the host of ib-container
+readonly INSTANCE=gateway   # gateway or tws      # the tws/gateway-output is displayed on the host of ib-container if
+                                                  # not redirected to the framebuffer
 
-IB_PROGRAM=$PRODUCT-latest-standalone-linux-x64.sh 
-readonly IB_PATH=https://download2.interactivebrokers.com/installers/$PRODUCT/latest-standalone/$IB_PROGRAM
+IB_PROGRAM=${PRODUCT}-latest-standalone-linux-x64.sh 
+readonly IB_PATH=https://download2.interactivebrokers.com/installers/${PRODUCT}/latest-standalone/${IB_PROGRAM}
 
 IBC_VERSION=3.8.5
 readonly IBC_PATH=https://github.com/IbcAlpha/IBC/releases/download/${IBC_VERSION}/IBCLinux-${IBC_VERSION}.zip
 
-readonly SIMPLE_MONITOR=https://github.com/ib-ruby/simple-monitor.git
+readonly GIT_SERVER=github.com
+readonly GIT_REPOSITORY=ib-ruby/simple-monitor.git
 
+# where to fetch simple monitor
+readonly SIMPLE_MONITOR_SOURCE=https://${GIT_SERVER}/${GIT_REPOSITORY}
+# directory to install simple-montor in container 
+readonly SIMPLE_MONITOR_DIRECTORY=simple-monitor
+readonly SIMPLE_MONITOR_BRANCH=master
 ## Täglicher Start von Gateway/TWS im crontab-Format (Minute Stunde)
 ## When to start Gateawy/TWS by cron
 START_TIME='5 5'
@@ -44,7 +51,7 @@ START_TIME='5 5'
 ## Nach dem Aufsetzen eines LXD-Containers laufen noch Backgroundprozesse ab.
 ## Es muss gewartet werden, bis diese abgeschlossen sind.
 ## Auf langsamen Rechnern anpassen!
-LXD_DELAY=5 # sec
+LXD_DELAY=7 # sec
 
 
 ### LXD-Requirements

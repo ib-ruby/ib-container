@@ -2,7 +2,7 @@
 
 Provides a Container including a running TWS/Gateway  in an isolated environment. 
 
-* The TWS/Gateway is restarted once a day
+* TWS/Gateway is restarted once a day
 * Framebuffer device to redirect Gateway-Output
 * X11 integration to run GUI-applications inside the container
 * A reverse SSH-Tunnel is implemented for an extra layer of security
@@ -28,7 +28,7 @@ provides the proprietary `IB-API` and the `FIX-Protocol`, the industry standard 
 
 ## Setup
 
-Edit `config.sh` 
+Edit `config.sh`. 
 
 The script `setup.sh` 
 * downloads and installs a minimized Ubuntu Linux Image  (Ubuntu 20.4 LTS)
@@ -57,14 +57,22 @@ The script is called with up to six arguments
                 {username on the middleman server default=actual username}
 
 ```
-All arguments are requested interactively if absent
+All arguments are requested interactively if absent.
 
-After successfully initializing the container, the gateway is started (output goes into the framebuffer) and a TMUX-Session 
-is opened. [Simple-Monitor](https://github.com/ib-ruby/simple-monitor)  is autostarted. 
+After successfully initializing the container, the gateway is started  and a TMUX-Session 
+is opened. [Simple-Monitor](https://github.com/ib-ruby/simple-monitor)  is autostarted.
+ 
+Even if a framebuffer is installed, during its first run the gateway-application uses the X11-screen. This enables to change
+the configuration.  In most cases, you will enable trading by disabling the _ReadOnly API_ checkbox.  
+**Important:** Changes to the configuration of the gateway are saved only  on  closing of the application. You have to restart the gateway!
 
-The Control-Key is **CRTL A**;  _CRTL A d_ detaches from the session. 
+The Control-Key is **CRTL A**;  `CRTL a d`  detaches from the session.  
+`tmux attach` re-establishes the session.
 
 The container is accessible (with X11 support)  through: `lxc open {container name}`
+
+Simple scripts to start `./start_gateway.sh`, `./start_framebuffer_gateway.sh` and to stop `./stop_gateway.sh` the 
+gateway application are included. 
 
 ## Finishing
 

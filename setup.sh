@@ -102,7 +102,7 @@ else
 	fi
 fi
 read -p  "[?] Gateway Ausgabe in Framebuffer umleiten? [Y/n]:" cont
-if  [[ -n $cont  ||  $cont == 'n' ]]  ; then
+if  [[  $cont == 'n' ]]  ; then
         TWS_DISPLAY=:0
 else
 	TWS_DISPLAY=:99
@@ -237,10 +237,11 @@ check_container(){
 
 init_container(){
 ## Check ob Container jungfraeulich ist
+## Containerzertifikate installieren
 ## Java JRE installieren
 ## TWS / Gateway installieren
 	local access_container="lxc exec $CONTAINER -- sudo --login --user ubuntu --"
-	if [ `$access_container ls  /home/ubuntu | wc -l `  -eq 0 ]  ; then
+	if test " `$access_container ls  /home/ubuntu | wc -l ` -eq 0 "  ; then
 		print_status "Home-Directory des Containers ist leer"
 		print_status "Installiere $PRODUCT"
 		print_status "warte $LXD_DELAY  Sekunden bis sich der Container initialisiert hat"
@@ -252,13 +253,32 @@ init_container(){
 		$access_container  sudo apt-get install -y openjdk-14-jre    >> $SILENT  	
 
 #	testen, ob java installiert ist: 
-#  $access_container dpkg -s openjdk-14-jre | grep -c installed 
-		print_error "Falls java an dieser Stelle nicht installiert wurde ... wir holen dies später nach!"
+  		if test " `access_container dpkg -s openjdk-14-jre | grep -c installed ` eq 1 " ; then 
+			print_error "Java Installation wird später nachgeholt"
+		else
+			print_status "Java erfolgreiche installiert"
+		fi
+		
+		$access_container mkdir /home/ubuntu/.ssh 2>&1 1>/dev/null
+		lxc file push keygen.sh $CONTAINER/home/ubuntu/
+		$access_container /home/ubuntu/keygen.sh
+		## overwrite id_rsa keys if provided in certificates dir
+		if [ -d certificates ] ; then                       #  directory exists
+			if [ -s certificates ] ; then               #  its not empty
+				cd certificates 
+				for file in *
+				do
+					lxc file push $file $CONTAINER/home/ubuntu/.ssh/
+					$access_container chmod 600 /home/ubuntu/.ssh/$file
+				done
+				cd ..
+				print_status "Zertifikate erfolgreich installiert"
+			fi
+		fi
 		lxc file push $IB_PROGRAM $CONTAINER/home/ubuntu/
 		print_status "Installiere ${PRODUCT}.  Das dauert einige Minuten ..."
 		#$access_container DISPLAY= $IB_PROGRAM <<<""$'\n' 
 		lxc exec --user 1000 --group 1000 --env "DISPLAY=" $CONTAINER -- bash --login /home/ubuntu/$IB_PROGRAM <<<""$'\n'  >> $SILENT
-# >> $SILENT 
 		return 0
 	else
 		print_error "Container ist nicht leer. Konfiguration übersprungen!"
@@ -301,15 +321,15 @@ apply_ibc(){
 		print_error "Installation von IBC wird übersprungen."
 		print_error "Es wird keine crontab installiert."
 	else
-		$access_container  sudo apt-get install -y  openjdk-14-jre    >> $SILENT  	
+		$access_container sudo apt-get install -y  openjdk-14-jre    >> $SILENT  	
 		$access_container mkdir ibc
-		$access_container  sudo apt-get install -y unzip cron  >> $SILENT 
+		$access_container sudo apt-get install -y unzip cron  >> $SILENT 
 		lxc file push $ibc_file $CONTAINER/home/ubuntu/ibc/
-		$access_container  unzip ibc/$ibc_file -d ibc   >> $SILENT 
-		$access_container  chmod a+x ibc/gatewaystart.sh
-		$access_container  chmod a+x ibc/twsstart.sh
-		$access_container  chmod a+x ibc/scripts/ibcstart.sh
-		$access_container  chmod a+x ibc/scripts/displaybannerandlaunch.sh
+		$access_container unzip ibc/$ibc_file -d ibc   >> $SILENT 
+		$access_container chmod a+x ibc/gatewaystart.sh
+		$access_container chmod a+x ibc/twsstart.sh
+		$access_container chmod a+x ibc/scripts/ibcstart.sh
+		$access_container chmod a+x ibc/scripts/displaybannerandlaunch.sh
 		$access_container sed -in -e  '80 s/edemo/'"${LOGIN}"'/' -e ' 85 s/demouser/'"${PASS}"'/' /home/ubuntu/ibc/config.ini
 		if [ $DEMOACCOUNT -eq 1 ] ; then
 			$access_container sed -in ' 143 s/=live/=paper/ ' /home/ubuntu/ibc/config.ini
@@ -353,10 +373,10 @@ apply_ibc(){
 		rm ibc_cronfile
 		lxc file push start_framebuffer_gateway.sh  $CONTAINER/home/ubuntu/
 		lxc file push start_gateway.sh  $CONTAINER/home/ubuntu/
-		lxc file push kill_gateway.sh  $CONTAINER/home/ubuntu/
+		lxc file push stop_gateway.sh  $CONTAINER/home/ubuntu/
 		$access_container chmod a+x start_framebuffer_gateway.sh 
 		$access_container chmod a+x start_gateway.sh 
-		$access_container chmod a+x kill_gateway.sh 
+		$access_container chmod a+x stop_gateway.sh 
 		$access_container  crontab -u ubuntu /home/ubuntu/ibc_cronfile 
 		$access_container  rm /home/ubuntu/ibc_cronfile 
 	fi
@@ -369,8 +389,8 @@ install_simple_monitor(){
 	# tmux- und elinks-Konfigurationen kopieren
 	# Simple-Monitor installieren
 	local access_container="lxc exec $CONTAINER -- sudo --login --user ubuntu --"
-	if [ `$access_container find /home/ubuntu -type d -name simple-monitor | wc -l ` -ne  0 ] ; then
-		print_status "simple monitor ist bereits angelegt"
+	if [ `$access_container find /home/ubuntu -type d -name  $SIMPLE_MONITOR_DIRECTORY | wc -l ` -ne  0 ] ; then
+		print_status "$SIMPLE_MONITOR_DIRECTORY ist bereits angelegt"
 		return 1
 	else 
 		{
@@ -381,7 +401,9 @@ install_simple_monitor(){
 		$access_container  sudo usermod -a -G rvm ubuntu
 		$access_container  rvm install $RUBY_VERSION	 
 		$access_container  gem install bundler  
-		$access_container  git clone $SIMPLE_MONITOR
+		$access_container  ssh  -o "StrictHostKeyChecking=no"  git@$GIT_SERVER -C "ls" 2>&1 1>/dev/null  # suppress ssh warnings
+		$access_container  git clone --branch $SIMPLE_MONITOR_BRANCH  --single-branch $SIMPLE_MONITOR_SOURCE $SIMPLE_MONITOR_DIRECTORY
+
 
 		lxc file push install_simple_monitor.sh $CONTAINER/home/ubuntu/
 		if [ $DEMOACCOUNT -eq 0 ] ; then
@@ -418,8 +440,6 @@ setup_reverse_tunnel(){
         if [ $? -ne 0 ] ; then
 
 		$access_container sudo apt-get install -y openssh-server autossh  >> $SILENT  # add .ssh dir 
-		lxc file push keygen.sh $CONTAINER/home/ubuntu/
-		$access_container /home/ubuntu/keygen.sh
 		# download public-key and install it locally
 
 		lxc file pull $CONTAINER/home/ubuntu/.ssh/id_rsa.pub $CONTAINER.pub
@@ -490,7 +510,6 @@ setup_reverse_tunnel(){
 run_ats(){
 	# starte die IB-Software
 	local access_container="lxc exec $CONTAINER -- sudo --login --user ubuntu --"
-	$access_container /home/ubuntu/ibc/${INSTANCE}start.sh -inline &
 	$access_container /home/ubuntu/ibc/${INSTANCE}start.sh -inline &
 	sleep 5
         $access_container /home/ubuntu/simple-monitor/start-simple-monitor
