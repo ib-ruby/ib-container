@@ -1,0 +1,16 @@
+---
+#host: 10.222.148.177:7496  # default is:  localhost:4002
+:gateway:
+        :host: localhost
+:client_id: 900         # client_id: 0 --> display any open order
+:watchlist:  # enter list of watchlists here (format -> :Capitalized_symbols)
+  - :Futures   # hard-coded (ib-ruby/lib/ib/sybols) and user-defined lists are supported
+  - :Currencies  # do not use :Forex, put key-currencies into :Currencies instead
+  - :Spreads    # three watchlists are listed in the contract-mask
+  - :BuyAndHold  # any further entry acts as sort criterium
+
+       # only needed if no account alias is specified in TWS
+:user:
+  DU167348: FirstUser
+# DU167349: SecondUser
+:prices: delayed  #  or realtime
