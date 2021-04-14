@@ -21,7 +21,6 @@
 ### * A running LXD Server 
 ### * Put the public ssh certificate of the middleman server into the working dir of this script
 
-export DEBIAN_FRONTEND=noninteractive
 source config.sh
 
 print_status(){  
@@ -62,10 +61,10 @@ fi
 
 if test -z $DEMOACCOUNT ; then
 	read -p "[?] Demoaccount? [y|N]:" 
-	if [ ! $REPLY = 'y' ]  && [ ! $REPLY = 'j' ] ; then
-		DEMOACCOUNT=0
-	else 
+	if [  "$REPLY" = "y" ]  || [  "$REPLY" == "j" ] ; then
 		DEMOACCOUNT=1
+	else 
+		DEMOACCOUNT=0
 	fi
 fi
 
@@ -101,8 +100,8 @@ else
 		fi
 	fi
 fi
-read -p  "[?] Gateway Ausgabe in Framebuffer umleiten? [Y/n]:" cont
-if  [[  $cont == 'n' ]]  ; then
+read -p  "[?] Gateway Ausgabe in Framebuffer umleiten? [Y/n]:" 
+if  [  "$REPLY" = "n" ]  ; then
         TWS_DISPLAY=:0
 else
 	TWS_DISPLAY=:99
@@ -125,8 +124,8 @@ else
 fi
 print_status "Ausgabe für Gateway: $TWS_DISPLAY "
 print_status "......................................"
-read -p "[?] Installieren? [Y/n]:" cont
-if  [[ -n $cont  ||  $cont == 'n' ]]  ; then
+read -p "[?] Installieren? [Y/n]:" 
+if  [[ -n $REPLY  ||  $REPLY == 'n' ]]  ; then
 	exit 255
 fi
 
@@ -249,20 +248,19 @@ init_container(){
 
 		print_status "Installiere Java  Das dauert einige Minuten ..."
 		$access_container  sudo apt-get update   >> $SILENT  
-
 		$access_container  sudo apt-get install -y openjdk-14-jre    >> $SILENT  	
 
 #	testen, ob java installiert ist: 
-  		if test " `access_container dpkg -s openjdk-14-jre | grep -c installed ` eq 1 " ; then 
-			print_error "Java Installation wird später nachgeholt"
+  		if test " `$access_container dpkg -s openjdk-14-jre | grep -c installed ` -eq 1 " ; then 
+			print_status "Java erfolgreich installiert"
 		else
-			print_status "Java erfolgreiche installiert"
+			print_error "Java Installation wird später nachgeholt"
 		fi
-		
-		$access_container mkdir /home/ubuntu/.ssh 2>&1 1>/dev/null
+
 		lxc file push keygen.sh $CONTAINER/home/ubuntu/
 		$access_container /home/ubuntu/keygen.sh
 		## overwrite id_rsa keys if provided in certificates dir
+
 		if [ -d certificates ] ; then                       #  directory exists
 			if [ -s certificates ] ; then               #  its not empty
 				cd certificates 
@@ -321,34 +319,32 @@ apply_ibc(){
 		print_error "Installation von IBC wird übersprungen."
 		print_error "Es wird keine crontab installiert."
 	else
-		$access_container sudo apt-get install -y  openjdk-14-jre    >> $SILENT  	
+		$access_container sudo apt-get install -y  openjdk-14-jre  software-properties-common  unzip  cron >> $SILENT  	
 		$access_container mkdir ibc
-		$access_container sudo apt-get install -y unzip cron  >> $SILENT 
 		lxc file push $ibc_file $CONTAINER/home/ubuntu/ibc/
 		$access_container unzip ibc/$ibc_file -d ibc   >> $SILENT 
 		$access_container chmod a+x ibc/gatewaystart.sh
 		$access_container chmod a+x ibc/twsstart.sh
 		$access_container chmod a+x ibc/scripts/ibcstart.sh
 		$access_container chmod a+x ibc/scripts/displaybannerandlaunch.sh
-		$access_container sed -in -e  '80 s/edemo/'"${LOGIN}"'/' -e ' 85 s/demouser/'"${PASS}"'/' /home/ubuntu/ibc/config.ini
+		$access_container sed -i -e  '80 s/edemo/'"${LOGIN}"'/' -e ' 85 s/demouser/'"${PASS}"'/' /home/ubuntu/ibc/config.ini
 		if [ $DEMOACCOUNT -eq 1 ] ; then
-			$access_container sed -in ' 143 s/=live/=paper/ ' /home/ubuntu/ibc/config.ini
+			$access_container sed -i ' 143 s/=live/=paper/ ' /home/ubuntu/ibc/config.ini
 #			AcceptNonBrokerageAccountWarning=no
-			$access_container sed -in ' 322 s/=no/=yes/ ' /home/ubuntu/ibc/config.ini
+			$access_container sed -i ' 322 s/=no/=yes/ ' /home/ubuntu/ibc/config.ini
 		fi
 #		MinimizeMainWindow=no
 #		$access_container sed -in ' 207 s/=no/=yes/ ' /home/ubuntu/ibc/config.ini
 		if [ "$PRODUCT" = "tws" ] ; then
-			$access_container sed -in ' 21 s/978/981/ ' /home/ubuntu/ibc/twsstart.sh 
-#			$access_container sed -in ' 23 s/=/=paper/ ' /home/ubuntu/ibc/twsstart.sh 
-			$access_container sed -in ' 25 s/\/opt/\~/ ' /home/ubuntu/ibc/twsstart.sh
+			$access_container sed -i ' 21 s/978/981/ ' /home/ubuntu/ibc/twsstart.sh 
+#			$access_container sed -i ' 23 s/=/=paper/ ' /home/ubuntu/ibc/twsstart.sh 
+			$access_container sed -i ' 25 s/\/opt/\~/ ' /home/ubuntu/ibc/twsstart.sh
 		else
 			$access_container rm ibc/twsstart.sh
 		fi
-		$access_container sed -in ' 21 s/972/981/ ' /home/ubuntu/ibc/gatewaystart.sh 
-#		$access_container sed -in ' 23 s/=/=paper/ ' /home/ubuntu/ibc/gatewaystart.sh 
-		$access_container sed -in ' 25 s/\/opt/\~/ ' /home/ubuntu/ibc/gatewaystart.sh
-		touch ibc_cronfile
+		$access_container sed -i ' 21 s/972/981/ ' /home/ubuntu/ibc/gatewaystart.sh 
+#		$access_container sed -i ' 23 s/=/=paper/ ' /home/ubuntu/ibc/gatewaystart.sh 
+		$access_container sed -i ' 25 s/\/opt/\~/ ' /home/ubuntu/ibc/gatewaystart.sh
 		local lxd_display=`$access_container echo $DISPLAY`
 		# set display , if no DISPLAY setting is found, use :99 (xvfb)
 		if [ $lxd_display ] ; then 
@@ -359,18 +355,17 @@ apply_ibc(){
 #			$access_container  export DISPLAY=:99 
 			TWS_DISPLAY=:99
 		fi
-
+		# write entry to cronfile (overwrite previous entries ) and install it on the container	
 		echo 'START_TIME * * 1-5 export DISPLAY=ibc-display && /bin/bash /home/ubuntu/ibc/gatewaystart.sh -inline' > ibc_cronfile
 		if [ $INSTANCE = "tws" ] ; then
-			sed -in ' s/gateway/tws/ ' ibc_cronfile
-			sed -in ' s/ibc-display/$lxd_display/ ' ibc_cronfile
+			sed -i ' s/gateway/tws/ ' ibc_cronfile
+			sed -i ' s/ibc-display/$lxd_display/ ' ibc_cronfile
 		else
-			sed -in " s/ibc-display/$TWS_DISPLAY/ " ibc_cronfile
+			sed -i " s/ibc-display/$TWS_DISPLAY/ " ibc_cronfile
 		fi
-		sed -in  " s/START_TIME/$START_TIME/ "  ibc_cronfile 
+		sed -i  " s/START_TIME/$START_TIME/ "  ibc_cronfile 
 
 		lxc file push ibc_cronfile $CONTAINER/home/ubuntu/
-		rm ibc_cronfile
 		lxc file push start_framebuffer_gateway.sh  $CONTAINER/home/ubuntu/
 		lxc file push start_gateway.sh  $CONTAINER/home/ubuntu/
 		lxc file push stop_gateway.sh  $CONTAINER/home/ubuntu/
@@ -382,6 +377,10 @@ apply_ibc(){
 	fi
 }
 
+# where to fetch simple monitor
+
+
+
 install_simple_monitor(){
 	# Ruby installieren
 	# tmux installieren
@@ -389,31 +388,45 @@ install_simple_monitor(){
 	# tmux- und elinks-Konfigurationen kopieren
 	# Simple-Monitor installieren
 	local access_container="lxc exec $CONTAINER -- sudo --login --user ubuntu --"
+	# where to fetch simple monitor
+	if [[ $GIT_SERVER == *[@]* ]] ; then
+		SIMPLE_MONITOR_SOURCE=${GIT_SERVER}:/${GIT_REPOSITORY}
+	else
+		SIMPLE_MONITOR_SOURCE=https://${GIT_SERVER}/${GIT_REPOSITORY}
+	fi
+	
 	if [ `$access_container find /home/ubuntu -type d -name  $SIMPLE_MONITOR_DIRECTORY | wc -l ` -ne  0 ] ; then
 		print_status "$SIMPLE_MONITOR_DIRECTORY ist bereits angelegt"
 		return 1
 	else 
 		{
-		$access_container  sudo apt-get install -y software-properties-common 
 		$access_container  sudo apt-add-repository -y ppa:rael-gc/rvm
 		$access_container  sudo apt-get update  
 		$access_container  sudo apt-get install -y rvm elinks git tmux $INSTALL_ADDITONAL_PROGRAMS
 		$access_container  sudo usermod -a -G rvm ubuntu
 		$access_container  rvm install $RUBY_VERSION	 
 		$access_container  gem install bundler  
-		$access_container  ssh  -o "StrictHostKeyChecking=no"  git@$GIT_SERVER -C "ls" 2>&1 1>/dev/null  # suppress ssh warnings
+
+		if [[ $GIT_SERVER == *[@]* ]] ; then
+			$access_container  ssh  -o "StrictHostKeyChecking=no"  $GIT_SERVER -C "ls" 2>&1 1>/dev/null  # suppress ssh warnings
+		fi
 		$access_container  git clone --branch $SIMPLE_MONITOR_BRANCH  --single-branch $SIMPLE_MONITOR_SOURCE $SIMPLE_MONITOR_DIRECTORY
 
 
-		lxc file push install_simple_monitor.sh $CONTAINER/home/ubuntu/
+		lxc file push install_simple_monitor.sh ${CONTAINER}/home/ubuntu/
+
+		if [ `$access_container find /home/ubuntu/${SIMPLE_MONITOR_DIRECTORY} -type f -name config.yml | wc -l ` -eq  0 ] ; then
+			lxc file push config.yml $CONTAINER/home/ubuntu/${SIMPLE_MONITOR_DIRECTORY}/
+		fi
+		$access_container sed -i " 3 s/simple-monitor/${SIMPLE_MONITOR_DIRECTORY}/ "  /home/ubuntu/install_simple_monitor.sh
 		if [ $DEMOACCOUNT -eq 0 ] ; then
 			if [ "$INSTANCE" = tws ] ; then
-			$access_container  sed -in 's/:host: localhost/&:7496/g'  /home/ubuntu/simple-monitor/config.yml
+			$access_container  sed -i 's/:host: localhost/&:7496/g'  /home/ubuntu/${SIMPLE_MONITOR_DIRECTORY}/config.yml
 			else
-			$access_container  sed -in 's/:host: localhost/&:4001/g'  /home/ubuntu/simple-monitor/config.yml
+			$access_container  sed -i 's/:host: localhost/&:4001/g'  /home/ubuntu/${SIMPLE_MONITOR_DIRECTORY}/config.yml
 			fi
 		elif [ "$INSTANCE" = tws ] ; then
-			$access_container  sed -in 's/:host: localhost/&:7497/g'  /home/ubuntu/simple-monitor/config.yml
+			$access_container  sed -i 's/:host: localhost/&:7497/g'  /home/ubuntu/${SIMPLE_MONITOR_DIRECTORY}/config.yml
 		fi 
 		$access_container  ./install_simple_monitor.sh  
 		} >> $SILENT
@@ -440,21 +453,25 @@ setup_reverse_tunnel(){
         if [ $? -ne 0 ] ; then
 
 		$access_container sudo apt-get install -y openssh-server autossh  >> $SILENT  # add .ssh dir 
-		# download public-key and install it locally
+		# download public-key and install it locally, but only if the containter certificate is created locally
+		if [ -d certificates ]  &&  [ -s certificates ] ; then   
+			:
+		else		
+			lxc file pull $CONTAINER/home/ubuntu/.ssh/id_rsa.pub $CONTAINER.pub
+			echo ""
+			echo " ++++++++++++++++++++++++++++++++++++++++++++++ "
+			echo " Container-Zertifikat heruntergeladen!          "
+			echo " "
+			echo " ------>  $CONTAINER.pub  <------               "
+			echo " "
+			echo " Bitte manuell an ~/ssh/autorized_keys auf dem  "
+			echo " Middleman-Server anfügen!                      "
+			echo " ++++++++++++++++++++++++++++++++++++++++++++++ "
+			read -p "nach <CR>   gehts weiter"   read
+		fi
+		
 
-		lxc file pull $CONTAINER/home/ubuntu/.ssh/id_rsa.pub $CONTAINER.pub
-		echo ""
-		echo " ++++++++++++++++++++++++++++++++++++++++++++++ "
-		echo " Container-Zertifikat heruntergeladen!          "
-		echo " "
-		echo " ------>  $CONTAINER.pub  <------               "
-		echo " "
-		echo " Bitte manuell an ~/ssh/autorized_keys auf dem  "
-		echo " Middleman-Server anfügen!                      "
-		echo " ++++++++++++++++++++++++++++++++++++++++++++++ "
-		read -p "nach <CR>   gehts weiter"   read
-
-		print_status " Installiere lokal abgelegte Zertifikate im Container"
+		print_status "Installiere lokal abgelegte Zertifikate im Container"
 		# install certificates to access the container via ssh and reverse ssh
 		touch certificates.sh
 		for certificate in *.pub 
@@ -497,22 +514,31 @@ setup_reverse_tunnel(){
 		print_status "SSH-Tunnel wird installiert." 
 
 		lxc exec  $CONTAINER -- /$SSH_TUNNEL_LOCATION
-		sleep 3
+		sleep  $LXD_DELAY
 	fi
 	check_tunnel
 	if [ $? -eq 0 ] ; then 
 		print_status "Revese Tunnel ist gestartet"
 	else
-		print_error "Restart des Containers erforderlich für den Start des Reverse SSH Tunnels"
+		print_error "Reverse SSH Tunnel ist noch inaktiv ... "
 	fi
+	# copy autossh-check.sh, customize it, add to crontab and install newn crontab
+	lxc file push autossh-check.sh $CONTAINER/home/ubuntu/
+	$access_container sed -i " s/PORT/${SSH_PORT_NUMBER}/ " /home/ubuntu/autossh-check.sh
+	$access_container chmod a+x /home/ubuntu/autossh-check.sh
+	echo '*/5 * * * * /bin/bash  /home/ubuntu/autossh-check.sh' >> ibc_cronfile
+	lxc file push ibc_cronfile $CONTAINER/home/ubuntu/
+	$access_container  crontab -u ubuntu /home/ubuntu/ibc_cronfile 
+	$access_container  rm /home/ubuntu/ibc_cronfile 
 }
 
 run_ats(){
 	# starte die IB-Software
 	local access_container="lxc exec $CONTAINER -- sudo --login --user ubuntu --"
 	$access_container /home/ubuntu/ibc/${INSTANCE}start.sh -inline &
-	sleep 5
-        $access_container /home/ubuntu/simple-monitor/start-simple-monitor
+	sleep  $LXD_DELAY
+	sleep  $LXD_DELAY
+        $access_container /home/ubuntu/${SIMPLE_MONITOR_DIRECTORY}/start-simple-monitor
 	return 0
 }
 ## Hier gehts los
@@ -532,20 +558,19 @@ print_status " Container ${CONTAINER} ist angelegt     "
 
 setup_xvfb
 print_status " Framebuffer device eingerichtet         "
+
+
+
+print_status "Installiere IBC " 
+apply_ibc  
+
+print_status "Installiere simple-monitor " 
+install_simple_monitor 
+ 
 if [ $SETUP_AUTOSSH -eq 1 ] ; then 
 	setup_reverse_tunnel
-	print_status " Reverse Tunnel ist aufgebaut      "
+	print_status "Reverse Tunnel ist aufgebaut      "
 fi
+run_ats  
 
-
-
- print_status " Installiere IBC " 
- apply_ibc  
-
- print_status " Installiere simple-monitor " 
- install_simple_monitor 
- 
- run_ats  
-
- export DEBIAN_FRONTEND=newt
 

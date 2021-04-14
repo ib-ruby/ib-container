@@ -38,8 +38,6 @@ readonly IBC_PATH=https://github.com/IbcAlpha/IBC/releases/download/${IBC_VERSIO
 readonly GIT_SERVER=github.com
 readonly GIT_REPOSITORY=ib-ruby/simple-monitor.git
 
-# where to fetch simple monitor
-readonly SIMPLE_MONITOR_SOURCE=https://${GIT_SERVER}/${GIT_REPOSITORY}
 # directory to install simple-montor in container 
 readonly SIMPLE_MONITOR_DIRECTORY=simple-monitor
 readonly SIMPLE_MONITOR_BRANCH=master
@@ -69,7 +67,7 @@ logfile=containerbau.log
 
 ### Weitere Software
 ### Liste von Debian-Paketnanen 
-INSTALL_ADDITONAL_PROGRAMS=  # "vim"  
+INSTALL_ADDITONAL_PROGRAMS="vim  ranger"
 
 ####  return codes
 ###

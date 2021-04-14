@@ -59,6 +59,8 @@ The script is called with up to six arguments
 ```
 All arguments are requested interactively if absent.
 
+The progress of the installation is available through `tail -f containerbau.log`
+
 After successfully initializing the container, the gateway is started  and a TMUX-Session 
 is opened. [Simple-Monitor](https://github.com/ib-ruby/simple-monitor)  is autostarted.
  
