@@ -21,7 +21,7 @@
 ### * A running LXD Server 
 ### * Put the public ssh certificate of the middleman server into the working dir of this script
 
-source config.sh
+source config.halfgarten
 
 print_status(){  
        	echo "[+] $*" 
