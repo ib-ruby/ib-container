@@ -19,16 +19,14 @@ They offer a unified user experience around full Linux systems running inside co
 [IB-Container](https://github.com/ib-ruby/ib-container) provides a suitable environment to run applications addressing 
 the TWS-API of Interactive Brokers. Several Container can safely run simultaneously and 24/7 on standard cloud-instances. 
 
-The broker provides two java-executables serving as API-Server
-* ibgateway
-* tws
+> Setup LXD-Container:
+>  * Install LDX via snap  (migrate existing lxd-installation with lxd.migrate)
+>  * Initiailise with lxd.init`  (important: lxd is initialized as normal user) 
 
-The `tws`-binary can operate as full GUI-Interface or as lightweight Gateway-Application. [IB-Container](https://github.com/ib-ruby/ib-container) can run both.  The `ibgateway`-binary
-provides the proprietary `IB-API` and the `FIX-Protocol`, the industry standard to access trading-applications. 
 
 ## Setup
 
-Edit `config.sh`. 
+Edit `config.sh` and modify with defaults to your needs. 
 
 The script `setup.sh` 
 * downloads and installs a minimized Ubuntu Linux Image  (Ubuntu 20.4 LTS)
@@ -59,13 +57,12 @@ The script is called with up to six arguments
 ```
 All arguments are requested interactively if absent.
 
-The progress of the installation is available through `tail -f containerbau.log`
+The progress of the installation is available through `tail -f containerbau.log`  (in a different terminal)
 
 After successfully initializing the container, the gateway is started  and a TMUX-Session 
 is opened. [Simple-Monitor](https://github.com/ib-ruby/simple-monitor)  is autostarted.
  
-Even if a framebuffer is installed, during its first run the gateway-application uses the X11-screen. This enables to change
-the configuration.  In most cases, you will enable trading by disabling the _ReadOnly API_ checkbox.  
+Even if a framebuffer is installed, to get access to the API-Configuration during its first run the gateway-application uses the X11-screen.  In most cases, you have to disable the _ReadOnly API_ checkbox.  
 **Important:** Changes to the configuration of the gateway are saved only  on  closing of the application. You have to restart the gateway!
 
 The Control-Key is **CRTL A**;  `CRTL a d`  detaches from the session.  
@@ -80,7 +77,7 @@ gateway application are included.
 
 On your Middleman Server, edit `~.ssh/config` and add the reverse tunnel specification
 
-If you specified `bash setup.sh t1 3445 your-server-adress your-username` then add
+If you specified `bash setup.sh t1  username password 3445 your-server-adress your-username` then add
  
 ```
 Host ibcontainer
