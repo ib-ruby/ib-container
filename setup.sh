@@ -321,7 +321,7 @@ apply_ibc(){
 		print_error "Installation von IBC wird übersprungen."
 		print_error "Es wird keine crontab installiert."
 	else
-		gw_installation=`ls ~/Jts  | awk ' /^[0-9]/  { print $1 } '`
+		gw_installation=`$access_container ls /home/ubuntu/Jts  | awk ' /^[0-9]/  { print $1 } '`
 
 		$access_container sudo apt-get install -y  openjdk-14-jre  software-properties-common  unzip  cron >> $SILENT  	
 		$access_container mkdir ibc
@@ -340,13 +340,13 @@ apply_ibc(){
 #		MinimizeMainWindow=no
 #		$access_container sed -in ' 207 s/=no/=yes/ ' /home/ubuntu/ibc/config.ini
 		if [ "$PRODUCT" = "tws" ] ; then
-			$access_container sed -i ' 21 s/978/$gw_installation/ ' /home/ubuntu/ibc/twsstart.sh 
+			$access_container sed -i " 21 s/978/$gw_installation/ " /home/ubuntu/ibc/twsstart.sh 
 #			$access_container sed -i ' 23 s/=/=paper/ ' /home/ubuntu/ibc/twsstart.sh 
 			$access_container sed -i ' 25 s/\/opt/\~/ ' /home/ubuntu/ibc/twsstart.sh
 		else
 			$access_container rm ibc/twsstart.sh
 		fi
-		$access_container sed -i ' 21 s/972/$gw_installation/ ' /home/ubuntu/ibc/gatewaystart.sh 
+		$access_container sed -i " 21 s/972/$gw_installation/ " /home/ubuntu/ibc/gatewaystart.sh 
 #		$access_container sed -i ' 23 s/=/=paper/ ' /home/ubuntu/ibc/gatewaystart.sh 
 		$access_container sed -i ' 25 s/\/opt/\~/ ' /home/ubuntu/ibc/gatewaystart.sh
 		local lxd_display=`$access_container echo $DISPLAY`
