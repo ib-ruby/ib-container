@@ -31,7 +31,7 @@ readonly INSTANCE=gateway   # gateway or tws      # the tws/gateway-output is di
 # actual, stable installs TWS V978.2,  latest TWS V983
 IB_VERSION=stable #  or latest
 
-readonly IB_PATH=https://download2.interactivebrokers.com/installers/${PRODUCT}/${IB_VERSION}-standalone/ ${PRODUCT}-${IB_VERSION}-standalone-linux-x64.sh 
+readonly IB_PATH=https://download2.interactivebrokers.com/installers/${PRODUCT}/${IB_VERSION}-standalone/${PRODUCT}-${IB_VERSION}-standalone-linux-x64.sh 
 IBC_VERSION=3.8.5
 readonly IBC_PATH=https://github.com/IbcAlpha/IBC/releases/download/${IBC_VERSION}/IBCLinux-${IBC_VERSION}.zip
 
