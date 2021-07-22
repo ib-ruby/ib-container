@@ -13,7 +13,7 @@ Provides a Container including a running TWS/Gateway  in an isolated environment
 ## Customizing
 * modify config.yml
 
-The location of a specific versions of the tws to install  can be specified, as well as a subsitute for the simple-monitor-application to install. Additional programs to install  can be specified there, too.
+The location of a specific versions of the tws to install  can be specified, as well as a substiute for the simple-monitor-application to install. Additional programs to install  can be specified there, too.
 
 
 ## Background
