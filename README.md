@@ -2,13 +2,19 @@
 
 Provides a Container including a running TWS/Gateway  in an isolated environment. 
 
-* TWS/Gateway is restarted once a day
+* TWS/Gateway is restarted automaticcally (per cron job)
 * Framebuffer device to redirect Gateway-Output
 * X11 integration to run GUI-applications inside the container
 * A reverse SSH-Tunnel is implemented for an extra layer of security
 * [Simple-Monitor](https://github.com/ib-ruby/simple-monitor) is started upon setup
 * Anything is prepared to run an reliable Trading-Bot in a secure environment
 * A suitable ruby installation to develop and run ib-ruby-trading solutions
+
+## Customizing
+* modify config.yml
+
+The location of a specific versions of the tws to install  can be specified, as well as a subsitute for the simple-monitor-application to install. Additional programs to install  can be specified there, too.
+
 
 ## Background
 
