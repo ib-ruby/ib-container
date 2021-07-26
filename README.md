@@ -15,6 +15,7 @@ Provides a Container including a running TWS/Gateway  in an isolated environment
 
 The location of a specific version of the tws to be used can be specified, as well as a substiute for the simple-monitor-application to install. Additional programs to install  can be specified there, too. Its even possible to extend the container to a fully gui-based ubuntu-instance by setting up a window-manager (awesome is recommended) which can be remotely accessed through X2Go. 
 
+**note:** The TWS-executable is included. Don't be surprized if you clone this respository. 
 
 ## Background
 
