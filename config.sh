@@ -29,7 +29,7 @@ readonly PRODUCT=tws  # ibgateway or tws       # do not change, actually only tw
 readonly INSTANCE=gateway   # gateway or tws      # the tws/gateway-output is displayed on the host of ib-container if
                                                   # not redirected to the framebuffer
 # actual, stable installs TWS V978.2,  latest TWS V983
-IB_VERSION=stable #  or latest
+IB_VERSION=latest # or stable 
 
 readonly IB_PATH=https://download2.interactivebrokers.com/installers/${PRODUCT}/${IB_VERSION}-standalone/${PRODUCT}-${IB_VERSION}-standalone-linux-x64.sh 
 IBC_VERSION=3.8.5
