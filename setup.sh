@@ -125,7 +125,7 @@ fi
 print_status "Ausgabe für Gateway: $TWS_DISPLAY "
 print_status "......................................"
 read -p "[?] Installieren? [Y/n]:" 
-if  [[ -n $REPLY  ||  $REPLY == 'n' ]]  ; then
+if  [ $REPLY == 'n' ]  ; then
 	exit 255
 fi
 
@@ -278,7 +278,6 @@ init_container(){
 		#$access_container DISPLAY= $IB_PROGRAM <<<""$'\n' 
 		lxc exec --user 1000 --group 1000 --env "DISPLAY=" $CONTAINER -- bash --login /home/ubuntu/$IB_PROGRAM <<<""$'\n'  >> $SILENT
 
-		lxc file push check-gateway.sh $CONTAINER/home/ubuntu/
 		return 0
 	else
 		print_error "Container ist nicht leer. Konfiguration übersprungen!"
@@ -529,12 +528,26 @@ setup_reverse_tunnel(){
 	# copy autossh-check.sh, customize it, add to crontab and install newn crontab
 	lxc file push autossh-check.sh $CONTAINER/home/ubuntu/
 	$access_container sed -i " s/PORT/${SSH_PORT_NUMBER}/ " /home/ubuntu/autossh-check.sh
+	$access_container sed -i " s/TWS/${TWS_DISPLAY}/ " /home/ubuntu/autossh-check.sh
 	$access_container chmod a+x /home/ubuntu/autossh-check.sh
 	echo '*/5 * * * * /bin/bash  /home/ubuntu/autossh-check.sh' >> ibc_cronfile
 	lxc file push ibc_cronfile $CONTAINER/home/ubuntu/
 	$access_container  crontab -u ubuntu /home/ubuntu/ibc_cronfile 
 	$access_container  rm /home/ubuntu/ibc_cronfile 
 }
+
+setup_autostart(){
+	# run if no ssh-tunnel is used
+	local access_container="lxc exec $CONTAINER -- sudo --login --user ubuntu --"
+	lxc file push check-gateway.sh $CONTAINER/home/ubuntu/
+	## test every 5 minutes if the gateway is activ
+	$access_container sed -i " s/TWS/${TWS_DISPLAY}/ " /home/ubuntu/check-gateway.sh
+	echo '*/5 * * * * /bin/bash  /home/ubuntu/check-gateway.sh' >> ibc_cronfile
+	lxc file push ibc_cronfile $CONTAINER/home/ubuntu/
+	$access_container  crontab -u ubuntu /home/ubuntu/ibc_cronfile 
+	$access_container  rm /home/ubuntu/ibc_cronfile 
+}
+
 
 run_ats(){
 	# starte die IB-Software
@@ -574,6 +587,8 @@ install_simple_monitor
 if [ $SETUP_AUTOSSH -eq 1 ] ; then 
 	setup_reverse_tunnel
 	print_status "Reverse Tunnel ist aufgebaut      "
+else
+	setup_autostart
 fi
 run_ats  
 
