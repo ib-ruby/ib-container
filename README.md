@@ -101,7 +101,7 @@ The scipt assumes a desktop-like environment for the server. If no such device i
 ```
 lxc launch --profile default ubuntu-minimal:f  {container name}
 ```
-Then the `setup.sh`-script simply skipts this step. Run the skript as normal. 
+Then the `setup.sh`-script simply skips this step. Run the skript as normal. 
 The TWS-Gateway will not start immediately (no X11). The cron job will step in after 5 minutes.
 
 ## Status
