@@ -95,6 +95,14 @@ Then connect through `ssh -Y ibcontainer`
 
 Don't forget to add {container name}.pub to `~/.ssh/autorized_keys` on the Middleman Server. 
 
+## No X11, No Pulseaudio?
+
+The scipt assumes a desktop-like environment for the server. If no such device is present, the container has to be launched manually
+```
+lxc launch --profile default ubuntu-minimal:f  {container name}
+```
+Then the `setup.sh`-script simply skipts this step. Run the skript as normal. 
+The TWS-Gateway will not start immediately (no X11). The cron job will step in after 5 minutes.
 
 ## Status
 
