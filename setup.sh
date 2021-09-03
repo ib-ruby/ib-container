@@ -248,10 +248,10 @@ init_container(){
 
 		print_status "Installiere Java  Das dauert einige Minuten ..."
 		$access_container  sudo apt-get update   >> $SILENT  
-		$access_container  sudo apt-get install -y openjdk-14-jre    >> $SILENT  	
+		$access_container  sudo apt-get install -y openjdk-11-jre    >> $SILENT  	
 
 #	testen, ob java installiert ist: 
-  		if test " `$access_container dpkg -s openjdk-14-jre | grep -c installed ` -eq 1 " ; then 
+  		if test " `$access_container dpkg -s openjdk-11-jre | grep -c installed ` -eq 1 " ; then 
 			print_status "Java erfolgreich installiert"
 		else
 			print_error "Java Installation wird später nachgeholt"
@@ -322,7 +322,7 @@ apply_ibc(){
 	else
 		gw_installation=`$access_container ls /home/ubuntu/Jts  | awk ' /^[0-9]/  { print $1 } '`
 
-		$access_container sudo apt-get install -y  openjdk-14-jre  software-properties-common  unzip  cron >> $SILENT  	
+		$access_container sudo apt-get install -y  openjdk-11-jre  software-properties-common  unzip  cron >> $SILENT  	
 		$access_container mkdir ibc
 		lxc file push $ibc_file $CONTAINER/home/ubuntu/ibc/
 		$access_container unzip ibc/$ibc_file -d ibc   >> $SILENT 
