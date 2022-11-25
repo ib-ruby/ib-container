@@ -2,6 +2,8 @@
 
 Provides a Container including a running TWS/Gateway  in an isolated environment. 
 
+**The mandatory 2FA requires additional automatisation efforts to run the `ib-container`seamless!**
+
 * TWS/Gateway is restarted automaticcally (per cron job)
 * Framebuffer device to redirect Gateway-Output
 * X11 integration to run GUI-applications inside the container
