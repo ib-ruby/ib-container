@@ -37,6 +37,11 @@ if [ -f $logfile ] ; then  rm $logfile ; fi
 touch $logfile
 SILENT=$logfile
 
+if [ `id -u` != 1000 ] ; then 
+  print_error "UID des Users ist nicht 1000, X11-Mapping wird nicht funktionieren"
+	exit 99
+fi
+
 if test -n "${1}"; then
 	CONTAINER=${1}
 elif  test  -z $CONTAINER  ; then
@@ -61,7 +66,7 @@ fi
 
 if test -z $DEMOACCOUNT ; then
 	read -p "[?] Demoaccount? [y|N]:" 
-	if [  "$REPLY" = "y" ]  || [  "$REPLY" == "j" ] ; then
+	if [  "$REPLY" = "y" ]  || [  "$REPLY" = "j" ] ; then
 		DEMOACCOUNT=1
 	else 
 		DEMOACCOUNT=0
@@ -125,7 +130,7 @@ fi
 print_status "Ausgabe für Gateway: $TWS_DISPLAY "
 print_status "......................................"
 read -p "[?] Installieren? [Y/n]:" 
-if  [ $REPLY == 'n' ]  ; then
+if  [ "$REPLY" = "n" ]  ; then
 	exit 255
 fi
 
@@ -159,7 +164,7 @@ check_lxd(){
 	lxd_subversion=`lxd --version  | awk -F'.' '{ print $2 }'`
 	if [ $lxd_version -lt $MIN_LXD_VERSION ] || [ $lxd_subversion -lt $MIN_LXD_SUBVERSION ] ; then
 		print_error "LXD-Version nicht geeignet. "
-		print_error "Mindestens 4.11 ist erforderlich. "
+		print_error "Mindestens ${MIN_LXD_VERSION}.${MIN_LXD_SUBVERSION} ist erforderlich. "
 		print_error "`lxd --version` gefunden "
 		return 1
 	else
@@ -202,7 +207,8 @@ launch_image(){
 	if  lxc list | grep -q $CONTAINER  ; then 
 		return 1
 	else
-		lxc launch --profile default --profile gui  ubuntu-minimal:f $CONTAINER
+		## we are loading `jummy`, i.e. ubuntu 22.04
+		lxc launch --profile default --profile gui  ubuntu-minimal:j $CONTAINER
 		print_status "$LXD_DELAY Sekunden warten, bis das Netzwerk betriebsbereit ist"
 		sleep $LXD_DELAY 
 		return 0
@@ -211,10 +217,10 @@ launch_image(){
 
 
 download_ib_software(){
-	if [ -f $IB_PROGRAM ] ; then
+if [ -f $IB_PROGRAM ] || [ -f $IB_GATEWAY ] || [ -f $IB_TWS ]; then
 		:
 	else	
-		print_status "Hole $PRODUCT vom offiziellen Server"
+		print_status "Hole ${IB_INSTANCE} vom offiziellen Server"
 		wget $IB_PATH
 		chmod a+x $IB_PROGRAM
 	fi
@@ -248,10 +254,10 @@ init_container(){
 
 		print_status "Installiere Java  Das dauert einige Minuten ..."
 		$access_container  sudo apt-get update   >> $SILENT  
-		$access_container  sudo apt-get install -y openjdk-11-jre    >> $SILENT  	
+		$access_container  sudo apt-get install -y default-jre    >> $SILENT  	
 
 #	testen, ob java installiert ist: 
-  		if test " `$access_container dpkg -s openjdk-11-jre | grep -c installed ` -eq 1 " ; then 
+  		if test " `$access_container dpkg -s openjdk-11-jre | grep -c installed ` = 1 " ; then 
 			print_status "Java erfolgreich installiert"
 		else
 			print_error "Java Installation wird später nachgeholt"
@@ -273,10 +279,23 @@ init_container(){
 				print_status "Zertifikate erfolgreich installiert"
 			fi
 		fi
-		lxc file push $IB_PROGRAM $CONTAINER/home/ubuntu/
-		print_status "Installiere ${PRODUCT}.  Das dauert einige Minuten ..."
+		if [ "$IB_INSTANCE" = "ibgateway" ] ; then
+#			if [ -f $IB_GATEWAY ]; then
+#				ib_product=${IB_GATEWAY}
+#			else
+				ib_product=${IB_PROGRAM}
+#			fi
+		else
+#			if [ -f $IB_TWS ]; then
+#				ib_product=${IB_TWS}
+#			else
+				ib_product=${IB_PROGRAM}
+#			fi
+		fi
+		lxc file push ${ib_product} $CONTAINER/home/ubuntu/ib_product.sh
+		print_status "Installiere ${IB_INSTANCE}.  Das dauert einige Minuten ..."
 		#$access_container DISPLAY= $IB_PROGRAM <<<""$'\n' 
-		lxc exec --user 1000 --group 1000 --env "DISPLAY=" $CONTAINER -- bash --login /home/ubuntu/$IB_PROGRAM <<<""$'\n'  >> $SILENT
+		lxc exec --user 1000 --group 1000 --env "DISPLAY=" $CONTAINER -- bash --login /home/ubuntu/ib_product.sh <<<""$'\n'  >> $SILENT
 
 		return 0
 	else
@@ -322,7 +341,7 @@ apply_ibc(){
 	else
 		gw_installation=`$access_container ls /home/ubuntu/Jts  | awk ' /^[0-9]/  { print $1 } '`
 
-		$access_container sudo apt-get install -y  openjdk-11-jre  software-properties-common  unzip  cron >> $SILENT  	
+		$access_container sudo apt-get install -y  default-jre  software-properties-common unzip cron
 		$access_container mkdir ibc
 		lxc file push $ibc_file $CONTAINER/home/ubuntu/ibc/
 		$access_container unzip ibc/$ibc_file -d ibc   >> $SILENT 
@@ -330,112 +349,70 @@ apply_ibc(){
 		$access_container chmod a+x ibc/twsstart.sh
 		$access_container chmod a+x ibc/scripts/ibcstart.sh
 		$access_container chmod a+x ibc/scripts/displaybannerandlaunch.sh
-		$access_container sed -i -e  '80 s/edemo/'"${LOGIN}"'/' -e ' 85 s/demouser/'"${PASS}"'/' /home/ubuntu/ibc/config.ini
+		$access_container sed -i -e  '83 s/edemo/'"${LOGIN}"'/' -e ' 88 s/demouser/'"${PASS}"'/' /home/ubuntu/ibc/config.ini
 		if [ $DEMOACCOUNT -eq 1 ] ; then
-			$access_container sed -i ' 143 s/=live/=paper/ ' /home/ubuntu/ibc/config.ini
+			$access_container sed -i ' 193 s/=live/=paper/ ' /home/ubuntu/ibc/config.ini
+
+			# Existing Session Detected Action
+			$access_container sed -i ' 317 s/=manual/=primary/ ' /home/ubuntu/ibc/config.ini
 #			AcceptNonBrokerageAccountWarning=no
-			$access_container sed -i ' 322 s/=no/=yes/ ' /home/ubuntu/ibc/config.ini
+			$access_container sed -i ' 207 s/=no/=yes/ ' /home/ubuntu/ibc/config.ini
 		fi
-#		MinimizeMainWindow=no
-#		$access_container sed -in ' 207 s/=no/=yes/ ' /home/ubuntu/ibc/config.ini
-		if [ "$PRODUCT" = "tws" ] ; then
-			$access_container sed -i " 21 s/978/$gw_installation/ " /home/ubuntu/ibc/twsstart.sh 
-#			$access_container sed -i ' 23 s/=/=paper/ ' /home/ubuntu/ibc/twsstart.sh 
-			$access_container sed -i ' 25 s/\/opt/\~/ ' /home/ubuntu/ibc/twsstart.sh
-		else
-			$access_container rm ibc/twsstart.sh
-		fi
-		$access_container sed -i " 21 s/972/$gw_installation/ " /home/ubuntu/ibc/gatewaystart.sh 
+		$access_container sed -i " 21 s/1012/${IB_TWS_VERSION}/ " /home/ubuntu/ibc/twsstart.sh 
+		#$access_container sed -i ' 23 s/=/=paper/ ' /home/ubuntu/ibc/twsstart.sh 
+		$access_container sed -i ' 25 s/\/opt/\~/ ' /home/ubuntu/ibc/twsstart.sh
+		$access_container sed -i " 21 s/1012/${IB_GW_VERSION}/ " /home/ubuntu/ibc/gatewaystart.sh 
 #		$access_container sed -i ' 23 s/=/=paper/ ' /home/ubuntu/ibc/gatewaystart.sh 
 		$access_container sed -i ' 25 s/\/opt/\~/ ' /home/ubuntu/ibc/gatewaystart.sh
-		local lxd_display=`$access_container echo $DISPLAY`
-		# set display , if no DISPLAY setting is found, use :99 (xvfb)
-		if [ $lxd_display ] ; then 
-			if [ "$TWS_DISPLAY" == ":0" ] ; then
-				TWS_DISPLAY=$lxd_display
-			fi
-		else
-#			$access_container  export DISPLAY=:99 
-			TWS_DISPLAY=:99
-		fi
-		# write entry to cronfile (overwrite previous entries ) and install it on the container	
-		echo 'START_TIME * * 1-5 export DISPLAY=ibc-display && /bin/bash /home/ubuntu/ibc/gatewaystart.sh -inline' > ibc_cronfile
-		if [ $INSTANCE = "tws" ] ; then
-			sed -i ' s/gateway/tws/ ' ibc_cronfile
-			sed -i ' s/ibc-display/$lxd_display/ ' ibc_cronfile
-		else
-			sed -i " s/ibc-display/$TWS_DISPLAY/ " ibc_cronfile
-		fi
-		sed -i  " s/START_TIME/$START_TIME/ "  ibc_cronfile 
 
-		lxc file push ibc_cronfile $CONTAINER/home/ubuntu/
+
+		# tws_cronfile oder gateway_cronfile als ibc_cronfile in container kopieren
+		lxc file push ${IB_INSTANCE}-cronfile $CONTAINER/home/ubuntu/ibc_cronfile
 		lxc file push start_framebuffer_gateway.sh  $CONTAINER/home/ubuntu/
 		lxc file push start_gateway.sh  $CONTAINER/home/ubuntu/
+		lxc file push start_tws.sh  $CONTAINER/home/ubuntu/
 		lxc file push stop_gateway.sh  $CONTAINER/home/ubuntu/
 		$access_container chmod a+x start_framebuffer_gateway.sh 
 		$access_container chmod a+x start_gateway.sh 
+		$access_container chmod a+x start_tws.sh 
 		$access_container chmod a+x stop_gateway.sh 
 		$access_container  crontab -u ubuntu /home/ubuntu/ibc_cronfile 
-		$access_container  rm /home/ubuntu/ibc_cronfile 
+	#	$access_container  rm /home/ubuntu/ibc_cronfile 
 	fi
 }
 
-# where to fetch simple monitor
-
-
-
-install_simple_monitor(){
+install_ruby_stuff(){
 	# Ruby installieren
 	# tmux installieren
-	# elinks installieren
-	# tmux- und elinks-Konfigurationen kopieren
-	# Simple-Monitor installieren
+	# ib-examples installieren
 	local access_container="lxc exec $CONTAINER -- sudo --login --user ubuntu --"
-	# where to fetch simple monitor
-	if [[ $GIT_SERVER == *[@]* ]] ; then
-		SIMPLE_MONITOR_SOURCE=${GIT_SERVER}:/${GIT_REPOSITORY}
-	else
-		SIMPLE_MONITOR_SOURCE=https://${GIT_SERVER}/${GIT_REPOSITORY}
-	fi
-	
-	if [ `$access_container find /home/ubuntu -type d -name  $SIMPLE_MONITOR_DIRECTORY | wc -l ` -ne  0 ] ; then
-		print_status "$SIMPLE_MONITOR_DIRECTORY ist bereits angelegt"
-		return 1
-	else 
-		{
+		if [[ ${GIT_SERVER} == *[@]* ]] ; then
+			$access_container  ssh  -o "StrictHostKeyChecking=no"  ${GIT_SERVER} -C "ls" 2>&1 1>/dev/null  # suppress ssh warnings
+		fi
 		$access_container  sudo apt-add-repository -y ppa:rael-gc/rvm
 		$access_container  sudo apt-get update  
-		$access_container  sudo apt-get install -y rvm elinks git tmux $INSTALL_ADDITONAL_PROGRAMS
+		$access_container  sudo apt-get install -y rvm git tmux byobu ${INSTALL_ADDITONAL_PROGRAMS}
 		$access_container  sudo usermod -a -G rvm ubuntu
-		$access_container  rvm install $RUBY_VERSION	 
+		$access_container  rvm install ${RUBY_VERSION}
 		$access_container  gem install bundler  
 
-		if [[ $GIT_SERVER == *[@]* ]] ; then
-			$access_container  ssh  -o "StrictHostKeyChecking=no"  $GIT_SERVER -C "ls" 2>&1 1>/dev/null  # suppress ssh warnings
-		fi
-		$access_container  git clone --branch $SIMPLE_MONITOR_BRANCH  --single-branch $SIMPLE_MONITOR_SOURCE $SIMPLE_MONITOR_DIRECTORY
+#	if [[ $GIT_SERVER == *[@]* ]] ; then
+#		source=${GIT_SERVER}:/${IB_EXAMPLES_GIT_REPOSITORY}
+#	else
+		source=https://${GIT_SERVER}/${IB_EXAMPLES_GIT_REPOSITORY}
+#	fi
+	
+	if [ `$access_container find /home/ubuntu -type d -name  ${IB_EXAMPLES_DIRECTORY} | wc -l ` -ne  0 ] ; then
+		print_status "${IB_EXAMPLES_DIRECTORY} ist bereits angelegt"
+		return 1
+	else 
+		$access_container  git clone ${source}  ${IB_EXAMPLES_DIRECTORY}
+		# examples hat ein install skript, dies ausführen
+#		$access_container  rm /home/ubuntu/${IB_EXAMPLES_DIRECTORY}/Gemfile  ## no longer present in gem
+		$access_container  bash /home/ubuntu/${IB_EXAMPLES_DIRECTORY}/setup/install_gems.sh
+	fi
 
-
-		lxc file push install_simple_monitor.sh ${CONTAINER}/home/ubuntu/
-
-		if [ `$access_container find /home/ubuntu/${SIMPLE_MONITOR_DIRECTORY} -type f -name config.yml | wc -l ` -eq  0 ] ; then
-			lxc file push config.yml $CONTAINER/home/ubuntu/${SIMPLE_MONITOR_DIRECTORY}/
-		fi
-		$access_container sed -i " 3 s/simple-monitor/${SIMPLE_MONITOR_DIRECTORY}/ "  /home/ubuntu/install_simple_monitor.sh
-		if [ $DEMOACCOUNT -eq 0 ] ; then
-			if [ "$INSTANCE" = tws ] ; then
-			$access_container  sed -i 's/:host: localhost/&:7496/g'  /home/ubuntu/${SIMPLE_MONITOR_DIRECTORY}/config.yml
-			else
-			$access_container  sed -i 's/:host: localhost/&:4001/g'  /home/ubuntu/${SIMPLE_MONITOR_DIRECTORY}/config.yml
-			fi
-		elif [ "$INSTANCE" = tws ] ; then
-			$access_container  sed -i 's/:host: localhost/&:7497/g'  /home/ubuntu/${SIMPLE_MONITOR_DIRECTORY}/config.yml
-		fi 
-		$access_container  ./install_simple_monitor.sh  
-		} >> $SILENT
-		return 0
-	fi 
-} 
+  } 
 
 setup_reverse_tunnel(){
 	# Kopiere das Skript in den Container
@@ -542,20 +519,28 @@ setup_autostart(){
 	lxc file push check-gateway.sh $CONTAINER/home/ubuntu/
 	## test every 5 minutes if the gateway is activ
 	$access_container sed -i " s/TWS/${TWS_DISPLAY}/ " /home/ubuntu/check-gateway.sh
-	echo '*/5 * * * * /bin/bash  /home/ubuntu/check-gateway.sh' >> ibc_cronfile
-	lxc file push ibc_cronfile $CONTAINER/home/ubuntu/
-	$access_container  crontab -u ubuntu /home/ubuntu/ibc_cronfile 
-	$access_container  rm /home/ubuntu/ibc_cronfile 
+#	echo '*/5 * * * * /bin/bash  /home/ubuntu/check-gateway.sh' >> ibc_cronfile
+#	lxc file push ibc_cronfile $CONTAINER/home/ubuntu/
+#	$access_container  crontab -u ubuntu /home/ubuntu/ibc_cronfile 
+#	$access_container  rm /home/ubuntu/ibc_cronfile 
 }
 
 
+## kept for future use
 run_ats(){
 	# starte die IB-Software
 	local access_container="lxc exec $CONTAINER -- sudo --login --user ubuntu --"
-	$access_container /home/ubuntu/ibc/${INSTANCE}start.sh -inline &
+		lxc file push bashrc $CONTAINER/home/ubuntu/.bashrc
+	if [ "${IB_INSTANCE}" = "tws" ] ; then
+		$access_container /home/ubuntu/ibc/twsstart.sh -inline &
+	else 
+		$access_container /home/ubuntu/ibc/gatewaystart.sh -inline &
+	fi
 	sleep  $LXD_DELAY
 	sleep  $LXD_DELAY
-        $access_container /home/ubuntu/${SIMPLE_MONITOR_DIRECTORY}/start-simple-monitor
+  $access_container byobu
+#        $access_container /home/ubuntu/${SIMPLE_MONITOR_DIRECTORY}/start-simple-monitor
+  
 	return 0
 }
 ## Hier gehts los
@@ -581,8 +566,8 @@ print_status " Framebuffer device eingerichtet         "
 print_status "Installiere IBC " 
 apply_ibc  
 
-print_status "Installiere simple-monitor " 
-install_simple_monitor 
+print_status "Installiere IB-Ruby " 
+install_ruby_stuff 
  
 if [ $SETUP_AUTOSSH -eq 1 ] ; then 
 	setup_reverse_tunnel

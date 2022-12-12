@@ -1,0 +1,4 @@
+@reboot export DISPLAY=:99 && /bin/bash /home/ubuntu/ibc/gatewaystart.sh -inline
+@reboot /bin/bash  /home/ubuntu/autossh-check.sh
+*/5 * * * * /bin/bash  /home/ubuntu/autossh-check.sh
+
