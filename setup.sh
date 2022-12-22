@@ -118,7 +118,7 @@ print_status "Containter: $CONTAINER"
 print_status "Login:      $LOGIN"
 print_status "Password:   **** " #  $PASS"
 print_status "Demoaccount: `if [ $DEMOACCOUNT -eq 1 ] ; then echo "ja"  ; else echo "nein"; fi ` "
-print_status "Gateway/TWS: `if [ "$PRODUCT" =  tws ]  ; then echo "$INSTANCE" ; else echo "Gateway" ; fi `"
+print_status "Gateway/TWS: `if [ "$PRODUCT" =  tws ]  ; then echo "$IB_INSTANCE" ; else echo "Gateway" ; fi `"
 if [ $SETUP_AUTOSSH -eq 1 ] ; then
 	print_status "PORT:       $SSH_PORT_NUMBER"
 	print_status "Backport:   $SSH_MONITORING_PORT_NUMBER"
