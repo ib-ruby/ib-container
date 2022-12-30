@@ -93,6 +93,11 @@ The TWS-Gateway will not start immediately (no X11). The cron job will step in a
 This  software is tested on Ubuntu systems. 
 
 
+## Support and german Manual
+
+Support is provided by the author via https://topofocus.de.  
+A tutorial (in german) is [available](https://topofocus.de/blog/ib-container/), too.
+
 ## CONTRIBUTING
 
 If you want to contribute to IB-Container development:
