@@ -24,6 +24,9 @@ CONTAINER=
 ### Which program should be used
 ### Either 'ibgateway' or 'tws' are suitable  
 ### TWS can be started either as non-GUI Gateway or in classical GUI-Mode
+### **Notice**  If the tws is used in gateway-mode, it fires the gui-version upon its daily reset. 
+### For uninterupted access  (weekly 2FA-Interruption) in gateway-mode ibgateway is required. 
+### Otherwise the api-access-ports of the gateway and the tws have to be equal.
 
 readonly IB_VERSION=stable           # stable or latest
 readonly IB_INSTANCE=ibgateway      # ibgateway or tws     
@@ -35,13 +38,11 @@ IB_PROGRAM=${IB_INSTANCE}-${IB_VERSION}-standalone-linux-x64.sh
 readonly IB_PATH=https://download2.interactivebrokers.com/installers/${IB_INSTANCE}/${IB_VERSION}-standalone/${IB_PROGRAM}
 # the tws/gateway-output is displayed on the host of ib-container if
 # not redirected to the framebuffer
-# If the tws is used in gateway-mode, it fires the gui-version upon its daily reset.
 # 
 # 
 readonly IBC_VERSION='3.14.0' 
 readonly IBC_PATH=https://github.com/IbcAlpha/IBC/releases/download/${IBC_VERSION}/IBCLinux-${IBC_VERSION}.zip
-# disabled for now: the versions are changing to fast
-# readonly IB_PATH=https://download2.interactivebrokers.com/installers/${PRODUCT}/${IB_VERSION}-standalone/${IB_PROGRAM}
+
 readonly GIT_SERVER=github.com
 readonly IB_EXAMPLES_GIT_REPOSITORY=ib-ruby/ib-examples.git
 
