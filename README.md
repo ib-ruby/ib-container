@@ -28,6 +28,9 @@ the TWS-API of Interactive Brokers. Several Container can safely run simultaneou
 >  * Install LDX via snap  (migrate existing lxd-installation with lxd.migrate)
 >  * Initialise with `lxd.init`
 
+## TWS / IB-Gateway
+The script tries to load the stable release of the software from the interactivebrokers download server. However, you can simply 
+download the software manualy and copy the executable into the `ib-container`-directory and update `config.sh`.
 
 ## Prerequisites
 
