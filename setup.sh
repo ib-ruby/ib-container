@@ -204,20 +204,35 @@ prepare_lxd(){
 
 launch_image(){
 ## Test ob das Image bereits angelegt ist
-	if  lxc list | grep -q $CONTAINER  ; then 
+	if  lxc list | grep -qw $CONTAINER  ; then              # grep -w -- find only complete words
 		return 1
 	else
 		## we are loading `jummy`, i.e. ubuntu 22.04
-		lxc launch --profile default --profile gui  ubuntu-minimal:j $CONTAINER
+		lxc launch --profile default --profile gui  ubuntu-minimal:j ${CONTAINER} ${LAUNCH_PARAMETER}
 		print_status "$LXD_DELAY Sekunden warten, bis das Netzwerk betriebsbereit ist"
 		sleep $LXD_DELAY 
 		return 0
 	fi
 }
 
+install_browser(){
+	local access_container="lxc exec $CONTAINER -- sudo --login --user ubuntu -- "
+	if [ -f $MIN_BROWSER ]; then
+		:
+	else
+		print_status "Hole Min-Browser Paket ${MIN_BROWSER} vom offiziellen Server"
+		wget ${MIN_BROWSER_LOCATION}${MIN_BROWSER} 
+	fi
+
+	lxc file push ${MIN_BROWSER} $CONTAINER/home/ubuntu/
+	$access_container sudo dpkg -i ${MIN_BROWSER}
+	$access_container sudo apt-get install -f -y
+	$access_container sudo dpkg -i ${MIN_BROWSER}
+	print_status "Min-Browser installiert"
+}
 
 download_ib_software(){
-if [ -f $IB_PROGRAM ] || [ -f $IB_GATEWAY ] || [ -f $IB_TWS ]; then
+	if [ -f $IB_PROGRAM ]; then 
 		:
 	else	
 		print_status "Hole ${IB_INSTANCE} vom offiziellen Server"
@@ -548,16 +563,14 @@ run_ats(){
 check_lxd
 if [ $? -ne 0 ] ; then exit 2 ; fi                     # return code 2 ---> wrong LXD version
 
-prepare_lxd
-
-launch_image
-
 download_ib_software
-
+prepare_lxd
+launch_image
 init_container
 print_status "......................................"
 print_status " Container ${CONTAINER} ist angelegt     "
 
+install_browser
 setup_xvfb
 print_status " Framebuffer device eingerichtet         "
 

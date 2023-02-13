@@ -16,6 +16,14 @@ Provides a Container including a running TWS/Gateway  and IB-Ruby attached in an
 
 The container can be transformed to a fully gui-based ubuntu-instance by setting up a window-manager (awesome is recommended) which can be remotely accessed through X2Go. (Install awesomewm and x2go)
 
+## Version 0.7
+
+* Default Ruby Version is 3.2.0
+* Loading stable ibgateway (V.10.19) 
+* Min-Browser ist included 
+* Launch-Parameter to install container in a different storage
+* bugfixes
+
 ## Background
 
 [Linux Container](https://linuxcontainers.org/)  are the next generation system container and virtual machine manager.

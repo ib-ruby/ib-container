@@ -7,7 +7,7 @@
 ###  leave empty for interactive mode
 LOGIN=
 PASS=
-DEMOACCOUNT=   # 1 or 0
+DEMOACCOUNT=1   # 1 or 0
 
 ### predefine settings for ssh-tunnel
 SSH_MIDDLEMAN_SERVER=
@@ -16,7 +16,9 @@ SSH_PORT_NUMBER=
 
 ### Name of Container
 CONTAINER=
-
+### additional parameters to append tot `lxc launch`. 
+### its useful if an installation should go to a defined storage '-s [name of storage]' 
+LAUNCH_PARAMETER=  
 ### Welche Software soll genutzt werden
 ### Es kann entweder der IB-Gateway oder die TWS als API-Server genutzt werden.
 ### Die TWS kann entweder im Gatewaymodus oder als klassische GUI gestartet werden
@@ -65,8 +67,12 @@ MIN_LXD_VERSION=5
 MIN_LXD_SUBVERSION=1
 
 ### Ruby Version
-RUBY_VERSION=3.1.2
+RUBY_VERSION=3.2.0
 
+### Browser
+### fetch from https://minbrowser.org/
+MIN_BROWSER=min-1.27.0-amd64.deb
+MIN_BROWSER_LOCATION=https://github.com/minbrowser/min/releases/download/v1.27.0/
 ### Speicherort der Konfiguration des ssh-tunnels
 SSH_TUNNEL_LOCATION="etc/network/if-up.d/reverse_ssh_tunnel"
 
@@ -75,7 +81,7 @@ logfile=containerbau.log
 
 ### additional programms to load
 ### list of deb-pakets 
-INSTALL_ADDITONAL_PROGRAMS="vim  ranger"
+INSTALL_ADDITONAL_PROGRAMS="vim  ranger rsync"
 
 ####  return codes
 ###
