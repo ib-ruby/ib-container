@@ -545,7 +545,10 @@ setup_autostart(){
 run_ats(){
 	# starte die IB-Software
 	local access_container="lxc exec $CONTAINER -- sudo --login --user ubuntu --"
-		lxc file push bashrc $CONTAINER/home/ubuntu/.bashrc
+	lxc file push bashrc $CONTAINER/home/ubuntu/.bashrc
+	# properly set up `ranger-cd`  `CRTL o`
+	${access_container} mkdir /home/ubuntu/.config/ranger
+	${access_container} touch /home/ubuntu/.config/ranger/choosendir
 	if [ "${IB_INSTANCE}" = "tws" ] ; then
 		$access_container /home/ubuntu/ibc/twsstart.sh -inline &
 	else 
